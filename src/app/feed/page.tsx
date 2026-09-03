@@ -1,23 +1,17 @@
+import Link from "next/link";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { PhotoCard } from "@/components/ui/PhotoCard";
+import { formatSubmittedAt } from "@/lib/reports/format";
 import { listPublicReports } from "@/lib/reports/public-feed";
 
 // Uncached: report submissions (ticket 08) should show up on the very
 // next feed load, not after a stale-fetch window.
 export const dynamic = "force-dynamic";
 
-function formatSubmittedAt(iso: string): string {
-  return new Date(iso).toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 // PRD Section 7 — no-login feed of all reports. This is also the exit
 // destination from the hero screen's close button (ticket 05) and the
-// landing page after every submission (ticket 08).
+// landing page after every submission (ticket 08). Each card links to
+// its permalink page (ticket 12).
 export default async function FeedPage() {
   const reports = await listPublicReports();
 
@@ -33,22 +27,23 @@ export default async function FeedPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {reports.map((report) => (
-            <PhotoCard
-              key={report.id}
-              src={report.photoUrl}
-              alt=""
-              footer={
-                <div>
-                  <p className="text-body text-ink">
-                    {report.locality}, {report.district}
-                  </p>
-                  <p className="text-caption text-muted">
-                    {report.reporterType === "resident" ? "Resident" : "Passer-by"} ·{" "}
-                    {formatSubmittedAt(report.createdAt)}
-                  </p>
-                </div>
-              }
-            />
+            <Link key={report.id} href={`/reports/${report.id}`}>
+              <PhotoCard
+                src={report.photoUrl}
+                alt=""
+                footer={
+                  <div>
+                    <p className="text-body text-ink">
+                      {report.locality}, {report.district}
+                    </p>
+                    <p className="text-caption text-muted">
+                      {report.reporterType === "resident" ? "Resident" : "Passer-by"} ·{" "}
+                      {formatSubmittedAt(report.createdAt)}
+                    </p>
+                  </div>
+                }
+              />
+            </Link>
           ))}
         </div>
       )}
