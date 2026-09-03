@@ -1,14 +1,21 @@
-import type { CapturedPhoto, ConfirmedLocality } from "./types";
+import type { CapturedPhoto, ConfirmedLocality, EmailChoice, ReporterType } from "./types";
 
 type NextStepPlaceholderProps = {
   photo: CapturedPhoto;
   localityInfo: ConfirmedLocality;
+  reporterType: ReporterType;
+  emailChoice: EmailChoice;
 };
 
-// Stand-in for ticket 07 (reporter type / log-or-email branch) — exists
-// so this ticket's wizard shell has somewhere to hand off to, carrying
-// the confirmed locality/district state ticket 07 will pick up.
-export function NextStepPlaceholder({ photo, localityInfo }: NextStepPlaceholderProps) {
+// Stand-in for ticket 08 (contact details / submission) — exists so this
+// ticket's wizard shell has somewhere to hand off to, carrying every
+// prior step's state forward.
+export function NextStepPlaceholder({
+  photo,
+  localityInfo,
+  reporterType,
+  emailChoice,
+}: NextStepPlaceholderProps) {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-6 text-center">
       {/* eslint-disable-next-line @next/next/no-img-element -- local blob: preview carried over from the photo step */}
@@ -16,7 +23,15 @@ export function NextStepPlaceholder({ photo, localityInfo }: NextStepPlaceholder
       <p className="text-body text-ink">
         {localityInfo.locality}, {localityInfo.district}
       </p>
-      <p className="text-caption text-muted">Reporter type &amp; submission coming in ticket 07.</p>
+      <p className="text-body text-muted">
+        {reporterType === "resident" ? "Resident" : "Passer-by"} ·{" "}
+        {emailChoice === "email" ? "Emailing the authorities" : "Just logging it"}
+      </p>
+      <p className="text-caption text-muted">
+        {emailChoice === "email"
+          ? "Contact details coming in ticket 08."
+          : "Submission coming in ticket 08."}
+      </p>
     </div>
   );
 }
