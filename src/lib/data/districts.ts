@@ -162,3 +162,12 @@ export function isKnownDistrict(name: string): boolean {
   const normalized = name.trim().toLowerCase();
   return DISTRICTS.some((d) => d.name.toLowerCase() === normalized);
 }
+
+// Case-insensitive lookup returning the canonically-cased entry — used to
+// normalize a district name reported by an external source (e.g.
+// LocationIQ) against this list, rather than trusting that source's own
+// casing/formatting.
+export function findCanonicalDistrict(name: string): District | null {
+  const normalized = name.trim().toLowerCase();
+  return DISTRICTS.find((d) => d.name.toLowerCase() === normalized) ?? null;
+}

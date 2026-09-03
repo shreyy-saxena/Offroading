@@ -1,24 +1,22 @@
-import type { CapturedPhoto, LocationResult } from "./types";
+import type { CapturedPhoto, ConfirmedLocality } from "./types";
 
 type NextStepPlaceholderProps = {
   photo: CapturedPhoto;
-  location: LocationResult;
+  localityInfo: ConfirmedLocality;
 };
 
-// Stand-in for ticket 06 (locality confirmation) — exists so this ticket's
-// wizard shell has somewhere to hand off to, carrying the photo/location
-// state ticket 06 will pick up.
-export function NextStepPlaceholder({ photo, location }: NextStepPlaceholderProps) {
+// Stand-in for ticket 07 (reporter type / log-or-email branch) — exists
+// so this ticket's wizard shell has somewhere to hand off to, carrying
+// the confirmed locality/district state ticket 07 will pick up.
+export function NextStepPlaceholder({ photo, localityInfo }: NextStepPlaceholderProps) {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-6 text-center">
       {/* eslint-disable-next-line @next/next/no-img-element -- local blob: preview carried over from the photo step */}
       <img src={photo.previewUrl} alt="" className="h-40 w-40 rounded-card object-cover" />
       <p className="text-body text-ink">
-        {location.status === "granted"
-          ? `Location captured (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`
-          : "We'll ask you to search for your locality manually."}
+        {localityInfo.locality}, {localityInfo.district}
       </p>
-      <p className="text-caption text-muted">Locality confirmation coming in ticket 06.</p>
+      <p className="text-caption text-muted">Reporter type &amp; submission coming in ticket 07.</p>
     </div>
   );
 }

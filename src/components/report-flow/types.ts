@@ -1,3 +1,5 @@
+import type { LocalityCandidate } from "@/lib/locality/resolve-candidates";
+
 export type CapturedPhoto = {
   file: File;
   previewUrl: string;
@@ -10,10 +12,19 @@ export type LocationResult =
   | { status: "denied" }
   | { status: "unavailable" };
 
-// The flow/wizard shell ticket 06-08 add steps to. Ticket 05 implements
-// "photo" and "location" for real; "next" is a placeholder that later
-// tickets replace with locality confirmation (ticket 06).
+// Same shape as a suggested candidate — a confirmed locality is either
+// a picked candidate or a manually typed one with an explicit district.
+export type ConfirmedLocality = LocalityCandidate;
+
+// The flow/wizard shell ticket 07 adds steps to. "next" is a placeholder
+// that ticket 07 replaces with the reporter-type / log-or-email branch.
 export type FlowState =
   | { step: "photo" }
   | { step: "location"; photo: CapturedPhoto }
-  | { step: "next"; photo: CapturedPhoto; location: LocationResult };
+  | { step: "locality"; photo: CapturedPhoto; location: LocationResult }
+  | {
+      step: "next";
+      photo: CapturedPhoto;
+      location: LocationResult;
+      localityInfo: ConfirmedLocality;
+    };

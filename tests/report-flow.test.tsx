@@ -20,6 +20,13 @@ vi.mock("@/app/actions/report-photo", () => ({
   }),
 }));
 
+// Ticket 06's candidate-resolution logic has its own dedicated tests
+// (locality-resolution.test.ts, locality-step.test.tsx) — this suite is
+// only about ticket 05's hand-off into that step, not what it does next.
+vi.mock("@/app/actions/locality", () => ({
+  resolveLocalityCandidatesAction: vi.fn().mockResolvedValue({ ok: true, candidates: [] }),
+}));
+
 function samplePhotoFile() {
   return new File([new Uint8Array([1, 2, 3])], "pothole.jpg", { type: "image/jpeg" });
 }
@@ -62,7 +69,9 @@ describe("ReportFlow — hero screen (ticket 05)", () => {
       target: { files: [samplePhotoFile()] },
     });
 
-    expect(await screen.findByText(/Location captured \(12\.3400, 56\.7800\)/)).toBeInTheDocument();
+    // Ticket 06's LocalityStep is next in the flow — reaching its heading
+    // proves GPS resolved and the flow advanced past this ticket's steps.
+    expect(await screen.findByText("Where's this?")).toBeInTheDocument();
   });
 
   it("hands off to manual locality search when GPS is denied, instead of dead-ending", async () => {
@@ -75,6 +84,8 @@ describe("ReportFlow — hero screen (ticket 05)", () => {
       target: { files: [samplePhotoFile()] },
     });
 
-    expect(await screen.findByText("We'll ask you to search for your locality manually.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("We couldn't get your location — search for it below."),
+    ).toBeInTheDocument();
   });
 });

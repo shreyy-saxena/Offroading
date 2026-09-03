@@ -2,12 +2,13 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LocalityStep } from "./LocalityStep";
 import { LocationStep } from "./LocationStep";
 import { NextStepPlaceholder } from "./NextStepPlaceholder";
 import { PhotoStep } from "./PhotoStep";
 import type { FlowState } from "./types";
 
-// Wizard shell (ticket 05) — tickets 06-08 add steps after "next".
+// Wizard shell (ticket 05) — ticket 07 adds steps after "next".
 // In-progress state lives in memory only; IndexedDB persistence is
 // ticket 10.
 export function ReportFlow() {
@@ -27,9 +28,19 @@ export function ReportFlow() {
   if (state.step === "location") {
     const { photo } = state;
     return (
-      <LocationStep onResolved={(location) => setState({ step: "next", photo, location })} />
+      <LocationStep onResolved={(location) => setState({ step: "locality", photo, location })} />
     );
   }
 
-  return <NextStepPlaceholder photo={state.photo} location={state.location} />;
+  if (state.step === "locality") {
+    const { photo, location } = state;
+    return (
+      <LocalityStep
+        location={location}
+        onConfirmed={(localityInfo) => setState({ step: "next", photo, location, localityInfo })}
+      />
+    );
+  }
+
+  return <NextStepPlaceholder photo={state.photo} localityInfo={state.localityInfo} />;
 }
