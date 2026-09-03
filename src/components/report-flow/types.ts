@@ -64,6 +64,10 @@ export type FlowState =
       location: LocationResult;
       localityInfo: ConfirmedLocality;
       reporterType: ReporterType;
+      // As-entered contact fields (ticket 10: persisted so a dropped
+      // connection mid-typing doesn't lose them) — only ever committed
+      // to a real submission via the form's own onSubmit.
+      draftContact?: ContactDetails;
     }
   | {
       step: "missingMapping";

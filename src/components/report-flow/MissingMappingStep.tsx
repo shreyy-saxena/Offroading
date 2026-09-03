@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { resolveMissingMappingAction, type MissingMappingChoice } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { clearDraft } from "./draft-store";
 import type { BaseReportInput, ContactDetails } from "./types";
 
 type MissingMappingStepProps = {
@@ -27,6 +28,7 @@ export function MissingMappingStep({ reportInput, contact }: MissingMappingStepP
     setError(null);
     try {
       await resolveMissingMappingAction(reportInput, contact, choice);
+      await clearDraft();
       router.push("/feed");
     } catch {
       setError("Something went wrong saving your report — please try again.");

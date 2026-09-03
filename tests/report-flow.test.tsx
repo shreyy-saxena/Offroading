@@ -3,6 +3,7 @@ import "./support/react-testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReportFlow } from "@/components/report-flow/ReportFlow";
+import { samplePhotoFile } from "./support/sample-file";
 
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -26,10 +27,6 @@ vi.mock("@/app/actions/report-photo", () => ({
 vi.mock("@/app/actions/locality", () => ({
   resolveLocalityCandidatesAction: vi.fn().mockResolvedValue({ ok: true, candidates: [] }),
 }));
-
-function samplePhotoFile() {
-  return new File([new Uint8Array([1, 2, 3])], "pothole.jpg", { type: "image/jpeg" });
-}
 
 function stubGeolocation(
   impl: (

@@ -1,29 +1,49 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { submitEmailReportAction } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { clearDraft } from "./draft-store";
 import type { BaseReportInput, ContactDetails } from "./types";
 
 type ContactDetailsStepProps = {
   reportInput: BaseReportInput;
+  // ticket 10: fields as previously entered, restored from a draft.
+  initialContact?: ContactDetails;
+  onDraftChange: (contact: ContactDetails) => void;
   onNeedsMappingResolution: (contact: ContactDetails) => void;
 };
 
 const inputClassName = "rounded-card border border-hairline bg-surface px-4 py-3 text-body text-ink";
+const DRAFT_DEBOUNCE_MS = 300;
 
 // PRD Section 5, Step 7 — only reached via the "Email the authorities"
 // branch (ticket 07). District-mapping resolution and the actual send
 // happen server-side (submitEmailReportAction); this step only collects
 // the three fields and reacts to the result.
-export function ContactDetailsStep({ reportInput, onNeedsMappingResolution }: ContactDetailsStepProps) {
+export function ContactDetailsStep({
+  reportInput,
+  initialContact,
+  onDraftChange,
+  onNeedsMappingResolution,
+}: ContactDetailsStepProps) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(initialContact?.name ?? "");
+  const [mobile, setMobile] = useState(initialContact?.mobile ?? "");
+  const [email, setEmail] = useState(initialContact?.email ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Persisted (via the parent's draft effect) so a dropped connection
+  // mid-typing doesn't lose these — debounced to avoid a write per
+  // keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onDraftChange({ name, mobile, email });
+    }, DRAFT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [name, mobile, email, onDraftChange]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -37,6 +57,7 @@ export function ContactDetailsStep({ reportInput, onNeedsMappingResolution }: Co
         onNeedsMappingResolution(contact);
         return;
       }
+      await clearDraft();
       router.push("/feed");
     } catch {
       setError("Something went wrong saving your report — please try again.");

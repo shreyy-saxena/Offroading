@@ -10,13 +10,18 @@ import type { CapturedPhoto } from "./types";
 type PhotoStepProps = {
   onCaptured: (photo: CapturedPhoto) => void;
   onClose: () => void;
+  // ticket 10: an abandoned draft is offered, never forced — the normal
+  // capture buttons below stay fully usable either way, so a stale draft
+  // never blocks starting a fresh report from this screen.
+  hasResumableDraft?: boolean;
+  onResume?: () => void;
 };
 
 // Hero screen (PRD Section 5, Steps 1-2 / FR11): opening the app *is*
 // this screen — no landing menu precedes it. Dark background on purpose:
 // the ticket describes the close button as sitting "over the photo/camera
 // view," i.e. this is meant to read as a camera viewfinder, not a form.
-export function PhotoStep({ onCaptured, onClose }: PhotoStepProps) {
+export function PhotoStep({ onCaptured, onClose, hasResumableDraft, onResume }: PhotoStepProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -83,6 +88,16 @@ export function PhotoStep({ onCaptured, onClose }: PhotoStepProps) {
         >
           Upload from library
         </button>
+        {hasResumableDraft ? (
+          <button
+            type="button"
+            onClick={onResume}
+            disabled={uploading}
+            className="text-body font-medium text-ink-foreground/80 underline-offset-4 hover:underline disabled:opacity-40"
+          >
+            Continue your last report
+          </button>
+        ) : null}
       </div>
 
       <input

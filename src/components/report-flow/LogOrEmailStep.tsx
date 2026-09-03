@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitLoggedReportAction } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { clearDraft } from "./draft-store";
 import type { BaseReportInput } from "./types";
 
 type LogOrEmailStepProps = {
@@ -25,6 +26,7 @@ export function LogOrEmailStep({ reportInput, onChooseEmail }: LogOrEmailStepPro
     setError(null);
     try {
       await submitLoggedReportAction(reportInput);
+      await clearDraft();
       router.push("/feed");
     } catch {
       setError("Something went wrong saving your report — please try again.");
