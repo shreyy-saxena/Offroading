@@ -1,15 +1,37 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { submitLoggedReportAction } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
-import type { EmailChoice } from "./types";
+import type { BaseReportInput } from "./types";
 
 type LogOrEmailStepProps = {
-  onChoice: (choice: EmailChoice) => void;
+  reportInput: BaseReportInput;
+  onChooseEmail: () => void;
 };
 
-// PRD Section 5, Step 6 — the report is saved either way (FR3); "log"
-// never asks for contact details, "email" continues into ticket 08.
-export function LogOrEmailStep({ onChoice }: LogOrEmailStepProps) {
+// PRD Section 5, Step 6. "Just log it" is terminal here (FR3: always
+// saved, `email_delivery_status = 'not_applicable'`, no contact fields
+// ever touched) — "Email the authorities" hands off into ticket 08's
+// contact-details step instead.
+export function LogOrEmailStep({ reportInput, onChooseEmail }: LogOrEmailStepProps) {
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleJustLogIt() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await submitLoggedReportAction(reportInput);
+      router.push("/feed");
+    } catch {
+      setError("Something went wrong saving your report — please try again.");
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex min-h-svh flex-col justify-center gap-6 px-6">
       <header className="flex flex-col gap-1">
@@ -19,9 +41,14 @@ export function LogOrEmailStep({ onChoice }: LogOrEmailStepProps) {
           as well.
         </p>
       </header>
+      {error ? <p className="text-body text-red-600">{error}</p> : null}
       <div className="flex flex-col gap-3">
-        <CtaButton onClick={() => onChoice("log")}>Just log it</CtaButton>
-        <CtaButton onClick={() => onChoice("email")}>Email the authorities</CtaButton>
+        <CtaButton onClick={handleJustLogIt} disabled={submitting}>
+          {submitting ? "Saving…" : "Just log it"}
+        </CtaButton>
+        <CtaButton onClick={onChooseEmail} disabled={submitting}>
+          Email the authorities
+        </CtaButton>
       </div>
     </div>
   );

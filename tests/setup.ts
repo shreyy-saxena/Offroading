@@ -10,6 +10,9 @@ dotenv.config({ path: ".env.local" });
 if (!process.env.LOCATIONIQ_API_KEY) {
   process.env.LOCATIONIQ_API_KEY = "test-key";
 }
+if (!process.env.RESEND_API_KEY) {
+  process.env.RESEND_API_KEY = "test-key";
+}
 
 import { mswServer } from "./support/msw-server";
 import { cleanupTrackedRows } from "./support/db";

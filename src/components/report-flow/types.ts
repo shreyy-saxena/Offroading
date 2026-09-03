@@ -1,4 +1,5 @@
 import type { LocalityCandidate } from "@/lib/locality/resolve-candidates";
+import type { BaseReportInput, ContactDetails, ReporterType } from "@/lib/reports/submit-report";
 
 export type CapturedPhoto = {
   file: File;
@@ -16,12 +17,30 @@ export type LocationResult =
 // a picked candidate or a manually typed one with an explicit district.
 export type ConfirmedLocality = LocalityCandidate;
 
-export type ReporterType = "passerby" | "resident";
-export type EmailChoice = "log" | "email";
+export type { BaseReportInput, ContactDetails, ReporterType };
 
-// The flow/wizard shell ticket 08 adds steps to. "next" is a placeholder
-// that ticket 08 replaces with the contact-details step (email path) /
-// actual submission (both paths converge there).
+// Shapes the flow's accumulated per-step state into the flat input every
+// submission action (ticket 08) takes.
+export function toBaseReportInput(state: {
+  photo: CapturedPhoto;
+  location: LocationResult;
+  localityInfo: ConfirmedLocality;
+  reporterType: ReporterType;
+}): BaseReportInput {
+  return {
+    photoUrl: state.photo.publicUrl,
+    latitude: state.location.status === "granted" ? state.location.latitude : null,
+    longitude: state.location.status === "granted" ? state.location.longitude : null,
+    locality: state.localityInfo.locality,
+    district: state.localityInfo.district,
+    reporterType: state.reporterType,
+  };
+}
+
+// The flow/wizard shell. Every terminal step (submitLoggedReportAction /
+// submitEmailReportAction / resolveMissingMappingAction, ticket 08)
+// redirects to the public feed itself rather than transitioning to a
+// further FlowState step — there's nothing after submission in-app.
 export type FlowState =
   | { step: "photo" }
   | { step: "location"; photo: CapturedPhoto }
@@ -40,10 +59,17 @@ export type FlowState =
       reporterType: ReporterType;
     }
   | {
-      step: "next";
+      step: "contact";
       photo: CapturedPhoto;
       location: LocationResult;
       localityInfo: ConfirmedLocality;
       reporterType: ReporterType;
-      emailChoice: EmailChoice;
+    }
+  | {
+      step: "missingMapping";
+      photo: CapturedPhoto;
+      location: LocationResult;
+      localityInfo: ConfirmedLocality;
+      reporterType: ReporterType;
+      contact: ContactDetails;
     };

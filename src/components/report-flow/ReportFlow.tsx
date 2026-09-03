@@ -2,17 +2,20 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ContactDetailsStep } from "./ContactDetailsStep";
 import { LocalityStep } from "./LocalityStep";
 import { LocationStep } from "./LocationStep";
 import { LogOrEmailStep } from "./LogOrEmailStep";
-import { NextStepPlaceholder } from "./NextStepPlaceholder";
+import { MissingMappingStep } from "./MissingMappingStep";
 import { PhotoStep } from "./PhotoStep";
 import { ReporterTypeStep } from "./ReporterTypeStep";
+import { toBaseReportInput } from "./types";
 import type { FlowState } from "./types";
 
-// Wizard shell (ticket 05) — ticket 08 adds steps after "next".
-// In-progress state lives in memory only; IndexedDB persistence is
-// ticket 10.
+// Wizard shell. Every terminal step (ticket 08's three submission
+// actions) redirects to the public feed itself — nothing in FlowState
+// exists past "contact"/"missingMapping". In-progress state lives in
+// memory only; IndexedDB persistence is ticket 10.
 export function ReportFlow() {
   const router = useRouter();
   const [state, setState] = useState<FlowState>({ step: "photo" });
@@ -56,22 +59,22 @@ export function ReportFlow() {
   }
 
   if (state.step === "logOrEmail") {
-    const { photo, location, localityInfo, reporterType } = state;
     return (
       <LogOrEmailStep
-        onChoice={(emailChoice) =>
-          setState({ step: "next", photo, location, localityInfo, reporterType, emailChoice })
-        }
+        reportInput={toBaseReportInput(state)}
+        onChooseEmail={() => setState({ ...state, step: "contact" })}
       />
     );
   }
 
-  return (
-    <NextStepPlaceholder
-      photo={state.photo}
-      localityInfo={state.localityInfo}
-      reporterType={state.reporterType}
-      emailChoice={state.emailChoice}
-    />
-  );
+  if (state.step === "contact") {
+    return (
+      <ContactDetailsStep
+        reportInput={toBaseReportInput(state)}
+        onNeedsMappingResolution={(contact) => setState({ ...state, step: "missingMapping", contact })}
+      />
+    );
+  }
+
+  return <MissingMappingStep reportInput={toBaseReportInput(state)} contact={state.contact} />;
 }

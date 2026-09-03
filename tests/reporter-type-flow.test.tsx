@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReportFlow } from "@/components/report-flow/ReportFlow";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 
 vi.mock("@/app/actions/report-photo", () => ({
   uploadReportPhotoAction: vi.fn().mockResolvedValue({
@@ -19,6 +20,13 @@ vi.mock("@/app/actions/locality", () => ({
     ok: true,
     candidates: [{ locality: "Indiranagar", district: "Bengaluru Urban" }],
   }),
+}));
+
+const submitLoggedReportAction = vi.fn();
+const submitEmailReportAction = vi.fn();
+vi.mock("@/app/actions/submit-report", () => ({
+  submitLoggedReportAction: (...args: unknown[]) => submitLoggedReportAction(...args),
+  submitEmailReportAction: (...args: unknown[]) => submitEmailReportAction(...args),
 }));
 
 function samplePhotoFile() {
@@ -36,8 +44,6 @@ function stubGeolocationGranted() {
   });
 }
 
-// Drives the flow up through locality confirmation, common setup for
-// both branch tests below.
 async function reachReporterTypeStep() {
   stubGeolocationGranted();
   render(<ReportFlow />);
@@ -51,36 +57,59 @@ async function reachReporterTypeStep() {
   expect(await screen.findByText("Are you a passer-by or a resident?")).toBeInTheDocument();
 }
 
-describe("ReportFlow — reporter type & log-or-email branch (ticket 07)", () => {
+describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("'Just log it' path reaches the end without ever asking for contact details, with prior state intact", async () => {
+  it("'Just log it' saves with the accumulated flow state and redirects to the feed, no contact fields ever shown", async () => {
+    submitLoggedReportAction.mockResolvedValue({ id: "report-1" });
     await reachReporterTypeStep();
 
     fireEvent.click(screen.getByRole("button", { name: "Resident of this area" }));
     fireEvent.click(await screen.findByRole("button", { name: "Just log it" }));
 
-    // Prior-step state (photo, locality) survived the branch.
-    expect(await screen.findByText("Indiranagar, Bengaluru Urban")).toBeInTheDocument();
-    expect(screen.getByText("Resident · Just logging it")).toBeInTheDocument();
-    // Decorative alt="" (established pattern from tickets 05/06) means
-    // this isn't exposed with role "img" — query by tag instead.
-    expect(document.querySelector("img")).toHaveAttribute("src", expect.stringContaining("blob:"));
+    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith("/feed"));
+    expect(submitLoggedReportAction).toHaveBeenCalledWith({
+      photoUrl: "https://example.com/photo.jpg",
+      latitude: 12.9716,
+      longitude: 77.5946,
+      locality: "Indiranagar",
+      district: "Bengaluru Urban",
+      reporterType: "resident",
+    });
 
-    // No contact-detail fields ever appeared anywhere in this run.
-    expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/mobile/i)).not.toBeInTheDocument();
+    // Contact-detail fields never appeared anywhere in this run.
+    expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Mobile number")).not.toBeInTheDocument();
   });
 
-  it("'Email the authorities' path diverges and still carries prior state forward", async () => {
+  it("'Email the authorities' reaches the contact-details step with prior state intact", async () => {
     await reachReporterTypeStep();
 
     fireEvent.click(screen.getByRole("button", { name: "Passer-by" }));
     fireEvent.click(await screen.findByRole("button", { name: "Email the authorities" }));
 
-    expect(await screen.findByText("Indiranagar, Bengaluru Urban")).toBeInTheDocument();
-    expect(screen.getByText("Passer-by · Emailing the authorities")).toBeInTheDocument();
+    expect(await screen.findByText("Your contact details")).toBeInTheDocument();
+
+    submitEmailReportAction.mockResolvedValue({ outcome: "saved", id: "report-2" });
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test User" } });
+    fireEvent.change(screen.getByLabelText("Mobile number"), { target: { value: "9999999999" } });
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "test@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await vi.waitFor(() => expect(submitEmailReportAction).toHaveBeenCalled());
+    expect(submitEmailReportAction).toHaveBeenCalledWith(
+      {
+        photoUrl: "https://example.com/photo.jpg",
+        latitude: 12.9716,
+        longitude: 77.5946,
+        locality: "Indiranagar",
+        district: "Bengaluru Urban",
+        reporterType: "passerby",
+      },
+      { name: "Test User", mobile: "9999999999", email: "test@example.com" },
+    );
+    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith("/feed"));
   });
 });
