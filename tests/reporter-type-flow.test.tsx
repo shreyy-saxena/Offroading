@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "./support/react-testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReportFlow } from "@/components/report-flow/ReportFlow";
 import { samplePhotoFile } from "./support/sample-file";
@@ -108,5 +108,29 @@ describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", ()
       { name: "Test User", mobile: "9999999999", email: "test@example.com" },
     );
     await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith("/feed"));
+  });
+});
+
+// Ticket 18 — a clear "you're offline" message for an in-page submission
+// attempt, distinct from the service worker's navigation-only fallback.
+describe("ReportFlow — offline submission handling (ticket 18)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
+  });
+
+  it("'Just log it' shows an offline message and never calls the action while offline", async () => {
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: false });
+    await reachReporterTypeStep();
+
+    fireEvent.click(screen.getByRole("button", { name: "Resident of this area" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Just log it" }));
+
+    expect(await screen.findByText(/you're offline/i)).toBeInTheDocument();
+    expect(submitLoggedReportAction).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 });

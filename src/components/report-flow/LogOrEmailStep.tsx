@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitLoggedReportAction } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { isOffline, OFFLINE_MESSAGE } from "@/lib/offline";
 import { clearDraft } from "./draft-store";
 import type { BaseReportInput } from "./types";
 
@@ -22,6 +23,11 @@ export function LogOrEmailStep({ reportInput, onChooseEmail }: LogOrEmailStepPro
   const [error, setError] = useState<string | null>(null);
 
   async function handleJustLogIt() {
+    if (isOffline()) {
+      setError(OFFLINE_MESSAGE);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -34,7 +40,7 @@ export function LogOrEmailStep({ reportInput, onChooseEmail }: LogOrEmailStepPro
       await clearDraft();
       router.push("/feed");
     } catch {
-      setError("Something went wrong saving your report — please try again.");
+      setError(isOffline() ? OFFLINE_MESSAGE : "Something went wrong saving your report — please try again.");
       setSubmitting(false);
     }
   }

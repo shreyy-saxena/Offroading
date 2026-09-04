@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { resolveMissingMappingAction, type MissingMappingChoice } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { isOffline, OFFLINE_MESSAGE } from "@/lib/offline";
 import { clearDraft } from "./draft-store";
 import type { BaseReportInput, ContactDetails } from "./types";
 
@@ -24,6 +25,11 @@ export function MissingMappingStep({ reportInput, contact }: MissingMappingStepP
   const [providedEmail, setProvidedEmail] = useState("");
 
   async function resolve(choice: MissingMappingChoice) {
+    if (isOffline()) {
+      setError(OFFLINE_MESSAGE);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -36,7 +42,7 @@ export function MissingMappingStep({ reportInput, contact }: MissingMappingStepP
       await clearDraft();
       router.push("/feed");
     } catch {
-      setError("Something went wrong saving your report — please try again.");
+      setError(isOffline() ? OFFLINE_MESSAGE : "Something went wrong saving your report — please try again.");
       setSubmitting(false);
     }
   }

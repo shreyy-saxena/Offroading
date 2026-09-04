@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { submitEmailReportAction } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { isOffline, OFFLINE_MESSAGE } from "@/lib/offline";
 import { clearDraft } from "./draft-store";
 import type { BaseReportInput, ContactDetails } from "./types";
 
@@ -47,6 +48,12 @@ export function ContactDetailsStep({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+
+    if (isOffline()) {
+      setError(OFFLINE_MESSAGE);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -65,7 +72,7 @@ export function ContactDetailsStep({
       await clearDraft();
       router.push("/feed");
     } catch {
-      setError("Something went wrong saving your report — please try again.");
+      setError(isOffline() ? OFFLINE_MESSAGE : "Something went wrong saving your report — please try again.");
       setSubmitting(false);
     }
   }
