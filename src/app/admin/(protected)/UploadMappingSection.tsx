@@ -42,8 +42,9 @@ export function UploadMappingSection() {
       <div>
         <h2 className="text-body font-semibold text-ink">Upload mapping</h2>
         <p className="text-caption text-muted">
-          A two-column CSV (state, authority email). Separate multiple emails in a cell with a semicolon (;).
-          Replaces the entire current mapping — every district in a state routes to that state&apos;s address(es).
+          A CSV with state name, then one or more authority emails — extra columns and semicolons (;) both work
+          for multiple emails. Replaces the entire current mapping — every district in a state routes to that
+          state&apos;s address(es).
         </p>
       </div>
 

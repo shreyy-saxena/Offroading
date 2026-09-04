@@ -172,11 +172,40 @@ export function findCanonicalDistrict(name: string): District | null {
   return DISTRICTS.find((d) => d.name.toLowerCase() === normalized) ?? null;
 }
 
-// Same case-insensitive normalization as findCanonicalDistrict, for the
-// state-level authority-email mapping (state_mapping table) — validates
-// admin CSV uploads and resolves a report's district to its state for
-// email routing.
+// Real-world state-mapping CSVs (Section 12.5) use a variety of official
+// short forms for the same state/UT — abbreviations that can't be
+// derived by normalizing punctuation or dropping words, only by a direct
+// lookup. Extend this if another genuine abbreviation turns up.
+const STATE_ABBREVIATIONS: Record<string, string> = {
+  dnh: "dadra and nagar haveli",
+};
+
+function normalizeStateText(raw: string): string {
+  const withAnd = raw.trim().toLowerCase().replace(/&/g, " and ");
+  const expanded = withAnd
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => STATE_ABBREVIATIONS[word] ?? word)
+    .join(" ");
+  return expanded.replace(/\s+/g, " ").trim();
+}
+
+// Case-insensitive, punctuation-tolerant lookup for the state-level
+// authority-email mapping (state_mapping table) — validates admin CSV
+// uploads and resolves a report's district to its state for email
+// routing. Real uploads use a mix of phrasings for the same state/UT
+// ("Andaman & Nicobar" for "Andaman and Nicobar Islands"), so beyond an
+// exact match this also accepts a whole-word prefix of exactly one
+// canonical name — i.e. a canonical name with its trailing descriptor
+// word(s) dropped — rather than requiring the full official name.
 export function findCanonicalState(name: string): string | null {
-  const normalized = name.trim().toLowerCase();
-  return STATES.find((state) => state.toLowerCase() === normalized) ?? null;
+  const normalized = normalizeStateText(name);
+  if (!normalized) return null;
+
+  const matches = STATES.filter((state) => {
+    const canonicalNormalized = normalizeStateText(state);
+    return canonicalNormalized === normalized || canonicalNormalized.startsWith(`${normalized} `);
+  });
+
+  return matches.length === 1 ? matches[0] : null;
 }

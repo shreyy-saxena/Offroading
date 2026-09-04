@@ -33,6 +33,13 @@ describe("parseStateMappingCsv", () => {
     expect(result.rows).toEqual([{ state: "Goa", authorityEmails: ["goa@example.com"] }]);
   });
 
+  it("skips a header row phrased as 'State/UT', not just the literal word 'state'", () => {
+    const result = parseStateMappingCsv("State/UT,Email\nGoa,goa@example.com");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows).toEqual([{ state: "Goa", authorityEmails: ["goa@example.com"] }]);
+  });
+
   it("normalizes state casing to the canonical form", () => {
     const result = parseStateMappingCsv("  goa ,goa@example.com");
     expect(result.ok).toBe(true);
@@ -68,11 +75,45 @@ describe("parseStateMappingCsv", () => {
     expect(result.errors).toEqual(["Row 1: at least one authority email is required."]);
   });
 
-  it("rejects a row with the wrong number of columns", () => {
-    const result = parseStateMappingCsv("Goa,goa@example.com,extra");
+  it("treats extra comma-separated columns as more emails, not a wrong-shape row", () => {
+    // Excel exports an in-cell "a@x.com, b@x.com" to CSV as two columns,
+    // since a bare comma can't be distinguished from a column separator.
+    const result = parseStateMappingCsv("Goa,first@example.com,second@example.com");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows).toEqual([{ state: "Goa", authorityEmails: ["first@example.com", "second@example.com"] }]);
+  });
+
+  it("rejects a row with only one column (no email at all)", () => {
+    const result = parseStateMappingCsv("Goa");
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.errors).toEqual(["Row 1: expected exactly 2 columns (state, authority email), found 3."]);
+    expect(result.errors).toEqual(["Row 1: expected at least 2 columns (state, authority email), found 1."]);
+  });
+
+  it("still rejects an extra column that isn't a valid email", () => {
+    const result = parseStateMappingCsv("Goa,goa@example.com,not-an-email");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([`Row 1: "not-an-email" is not a valid email address.`]);
+  });
+
+  it("accepts '&' as 'and' and a dropped trailing descriptor word", () => {
+    const result = parseStateMappingCsv("Andaman & Nicobar,andaman@example.com");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows).toEqual([
+      { state: "Andaman and Nicobar Islands", authorityEmails: ["andaman@example.com"] },
+    ]);
+  });
+
+  it("expands the 'DNH' abbreviation for Dadra and Nagar Haveli", () => {
+    const result = parseStateMappingCsv("DNH & Daman & Diu,dnh@example.com");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows).toEqual([
+      { state: "Dadra and Nagar Haveli and Daman and Diu", authorityEmails: ["dnh@example.com"] },
+    ]);
   });
 
   it("rejects a duplicate state within the same file", () => {

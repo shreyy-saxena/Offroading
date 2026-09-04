@@ -39,19 +39,27 @@ export function parseStateMappingCsv(text: string): ParseStateMappingResult {
 
     const cells = splitCsvLine(line);
 
-    // An optional header row ("state,authority_email" or similar) — only
-    // recognized as the very first non-blank line, since no real state
-    // in the canonical list is literally named "state".
-    if (index === firstNonBlankIndex && cells[0]?.toLowerCase() === "state") {
+    // An optional header row ("state,authority_email", "State/UT,Email",
+    // "State Name,...", etc.) — only recognized as the very first
+    // non-blank line, since no real state in the canonical list starts
+    // with the word "state".
+    if (index === firstNonBlankIndex && cells[0]?.trim().toLowerCase().startsWith("state")) {
       return;
     }
 
-    if (cells.length !== 2) {
-      errors.push(`Row ${lineNumber}: expected exactly 2 columns (state, authority email), found ${cells.length}.`);
+    if (cells.length < 2) {
+      errors.push(`Row ${lineNumber}: expected at least 2 columns (state, authority email), found ${cells.length}.`);
       return;
     }
 
-    const [stateRaw, emailsRaw] = cells;
+    // A source spreadsheet's cell often holds several comma-separated
+    // emails (e.g. "a@x.com, b@x.com") — exported to CSV, that comma is
+    // indistinguishable from a column separator, so the row arrives with
+    // more than 2 columns. Rather than reject it, treat every column
+    // after the first as another email for this state, same as a
+    // semicolon-separated cell.
+    const [stateRaw, ...emailCells] = cells;
+    const emailsRaw = emailCells.join(EMAIL_CELL_SEPARATOR);
 
     const canonical = findCanonicalState(stateRaw);
     if (!canonical) {
