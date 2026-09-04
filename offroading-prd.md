@@ -22,7 +22,7 @@ Potholes on public roads go unreported or unreported *effectively* — a citizen
 
 - No user accounts, login, or profile system for citizens.
 - No in-app tracking of complaint resolution status by the authority (the app records that an email was sent, not what happened after).
-- No admin moderation/deletion of individual reports (revisit if spam becomes a problem).
+- ~~No admin moderation/deletion of individual reports (revisit if spam becomes a problem).~~ **Reversed 2026-09-04**: admin deletion (single or multi-select) was added to the reports view — see ticket 20.
 - No native mobile app — a mobile-friendly installable web app (PWA) only.
 - No automatic detection of duplicate reports of the same pothole.
 
@@ -96,7 +96,7 @@ This feed is also the exit destination when a citizen taps the close ("×") cont
 
 ## 11. Out of Scope for v1 (explicitly deferred)
 
-- Admin deletion/moderation of individual reports.
+- ~~Admin deletion/moderation of individual reports.~~ **Reversed 2026-09-04** — see Section 3 and ticket 20.
 - Enforcement of photo size/type limits beyond sane defaults.
 - Resolution-status tracking after an email is sent to an authority.
 - Duplicate-report detection.

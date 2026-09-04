@@ -87,7 +87,7 @@ A no-login, mobile-first web app (installable as a PWA) that lets a citizen phot
 
 - Citizen accounts, login, or profile system.
 - In-app tracking of complaint resolution status after an email is sent (the app records that an email was sent, not what happened after).
-- Admin moderation or deletion of individual reports.
+- ~~Admin moderation or deletion of individual reports.~~ **Reversed 2026-09-04**: admin deletion (single or multi-select, from the reports view) was added — see ticket 20.
 - Native mobile apps (PWA only).
 - Automatic duplicate-report detection.
 - Enforcement of photo size/type limits beyond sane defaults.
