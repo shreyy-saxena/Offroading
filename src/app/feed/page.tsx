@@ -79,6 +79,7 @@ export default async function FeedPage() {
                       url={`${siteOrigin}/reports/${report.id}`}
                       locality={report.locality}
                       district={report.district}
+                      showLabels
                     />
                   </td>
                 </tr>

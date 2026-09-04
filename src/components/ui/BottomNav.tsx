@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FeedIcon, ReportIcon } from "./icons";
+import { ListIcon, ReportIcon } from "./icons";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Report", icon: ReportIcon },
-  { href: "/feed", label: "Feed", icon: FeedIcon },
+  { href: "/", label: "Click a Road", icon: ReportIcon },
+  { href: "/feed", label: "Reports", icon: ListIcon },
 ];
 
 // Floating pill bottom nav (PRD 14.3) — the two citizen-facing

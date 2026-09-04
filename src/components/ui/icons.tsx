@@ -22,13 +22,15 @@ export function ShareIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function FeedIcon(props: SVGProps<SVGSVGElement>) {
+export function ListIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
-      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
-      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
-      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+      <circle cx="4.5" cy="6" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1.25" fill="currentColor" stroke="none" />
+      <line x1="9" y1="6" x2="20.5" y2="6" />
+      <line x1="9" y1="12" x2="20.5" y2="12" />
+      <line x1="9" y1="18" x2="20.5" y2="18" />
     </svg>
   );
 }

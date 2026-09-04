@@ -15,6 +15,11 @@ type ShareButtonsProps = {
   locality: string;
   district: string;
   className?: string;
+  // Small text caption under each button — used on the reports table (a
+  // plain surface) but left off by default so the permalink page's photo
+  // overlay keeps IconButton's icon-only translucent-circle look, which
+  // is deliberate there (see IconButton's own comment).
+  showLabels?: boolean;
 };
 
 function shareText(locality: string, district: string): string {
@@ -25,7 +30,7 @@ function shareText(locality: string, district: string): string {
 // permalink page (ticket 12); the post-submit "confirmation" is just the
 // feed itself (PRD 13.1), so mounting on feed cards already covers it —
 // no separate confirmation surface needed.
-export function ShareButtons({ url, locality, district, className = "" }: ShareButtonsProps) {
+export function ShareButtons({ url, locality, district, className = "", showLabels = false }: ShareButtonsProps) {
   const [justCopied, setJustCopied] = useState(false);
 
   const text = shareText(locality, district);
@@ -48,14 +53,20 @@ export function ShareButtons({ url, locality, district, className = "" }: ShareB
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <IconButton
-        href={twitterHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        icon={<XLogoIcon />}
-        label="Share on X (Twitter)"
-      />
-      <IconButton icon={<ShareIcon />} label="Share…" onClick={handleShareClick} />
+      <div className="flex flex-col items-center gap-1">
+        <IconButton
+          href={twitterHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          icon={<XLogoIcon />}
+          label="Share on X (Twitter)"
+        />
+        {showLabels ? <span className="text-[11px] leading-none text-muted">X</span> : null}
+      </div>
+      <div className="flex flex-col items-center gap-1">
+        <IconButton icon={<ShareIcon />} label="Share…" onClick={handleShareClick} />
+        {showLabels ? <span className="text-[11px] leading-none text-muted">Share</span> : null}
+      </div>
       {justCopied ? (
         <span role="status" className="rounded-pill bg-overlay px-3 py-1.5 text-caption text-ink-foreground">
           Link copied
