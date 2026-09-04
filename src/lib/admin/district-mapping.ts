@@ -110,3 +110,17 @@ export async function replaceDistrictMapping(csvText: string): Promise<UploadMap
 
   return { outcome: "replaced", districtCount: parsed.rows.length, triggeredSends };
 }
+
+export type DistrictMappingEntry = { district: string; authorityEmail: string };
+
+// Ticket 16's "view current mapping" — a plain Server Component data
+// read reached only through the (protected) layout's render tree (unlike
+// replaceDistrictMapping above, this isn't a Server Action, so the
+// layout's admin check does cover it; nothing extra to re-check here).
+export async function listDistrictMapping(): Promise<DistrictMappingEntry[]> {
+  const db = createServiceRoleClient();
+  const { data, error } = await db.from("district_mapping").select("district, authority_email").order("district");
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({ district: row.district, authorityEmail: row.authority_email }));
+}

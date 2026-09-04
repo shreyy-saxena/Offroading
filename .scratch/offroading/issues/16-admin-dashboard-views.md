@@ -17,9 +17,9 @@ Blocked by: 14, 15, 19
 
 ## Acceptance Criteria
 
-- [ ] Mapping table shows exactly what's currently in `district_mapping`, read-only.
-- [ ] Reports table shows every report with contact fields and delivery status/error detail visible (admin-only, enforced server-side per ticket 14).
-- [ ] No retry, edit, or delete control exists anywhere on this page.
+- [x] Mapping table shows exactly what's currently in `district_mapping`, read-only.
+- [x] Reports table shows every report with contact fields and delivery status/error detail visible (admin-only, enforced server-side per ticket 14).
+- [x] No retry, edit, or delete control exists anywhere on this page.
 
 ## Out of scope for this ticket
 
@@ -28,3 +28,13 @@ Blocked by: 14, 15, 19
 ## Testing
 
 - Integration test: seeded reports with varied delivery statuses render correctly in the admin view; the same data fetched without admin auth is rejected (reuses ticket 14's boundary).
+
+## Comments
+
+- **No separate admin re-check inside `listDistrictMapping`/`listAdminReports`** — deliberate, and different from ticket 15's `uploadMappingAction`. Those two are plain Server Component data reads (`src/lib/admin/district-mapping.ts`, `src/lib/admin/reports.ts`), not Server Actions — Next.js's "page-level check doesn't extend to Server Actions" caveat (which ticket 15 hit and worked around) specifically doesn't apply to ordinary page rendering, since a page's render only ever happens by first passing through its layout tree. Ticket 14's `(protected)/layout.tsx` guard runs and can `redirect()` before `AdminDashboardPage` (and therefore these reads) ever executes. Confirmed live: `curl -i http://localhost:3000/admin` unauthenticated returns a 307 to `/admin/login` with zero report/mapping data anywhere in the response body — the redirect happens before any of this ticket's data ever gets fetched, let alone rendered.
+- **Testing note**: the "same data fetched without admin auth is rejected" criterion isn't meaningfully testable by calling `listDistrictMapping`/`listAdminReports` directly in a unit test the way ticket 15 tested `uploadMappingAction` — these two functions have no access-control logic of their own to test (see point above), so a test asserting they "reject" wouldn't be testing anything real. Verified the actual boundary live instead (previous point), and via the automated suite for data shape/correctness only.
+- **`router.refresh()` after a successful upload** (`UploadMappingSection.tsx`) — added once this ticket's `MappingTable` existed to update, so ticket 15's "the read-only view reflects it immediately" acceptance criterion is now literally true rather than needing a manual page reload; confirmed live (upload a CSV, table updates with the new district/email and the old one gone, with no reload in between).
+- **Design restraint**: no color-coded status badges — kept to the existing near-monochrome palette (PRD 14.1) plus the one precedent already established elsewhere in the app (`text-red-600` for error text, e.g. login/contact-details forms), reused here only for `email_error_detail`. Status itself is a plain text label.
+- **Wide reports table**: `ReportsTable` sets `min-w-[42rem]` inside its own `overflow-x-auto` wrapper rather than widening the page — the outer dashboard container stays `max-w-lg` like every other page in this app; the table scrolls horizontally within its own card instead.
+- Verified live in a real browser (transient Playwright, installed/removed after): seeded mapping + a `sent` report render correctly in both tables with all admin-only fields visible (name/mobile/email/status), zero retry/delete/edit controls anywhere on the page (asserted via role-based locator counts, not just visual inspection), and the unauthenticated-redirect boundary confirmed via raw `curl -i`. All seeded data deleted afterward.
+- `tsc`, `eslint`, and `pnpm test` (68/68) all pass clean.

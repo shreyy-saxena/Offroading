@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { LogoutButton } from "./LogoutButton";
+import { MappingTable } from "./MappingTable";
+import { ReportsTable } from "./ReportsTable";
 import { UploadMappingSection } from "./UploadMappingSection";
 
 export const metadata: Metadata = {
@@ -8,8 +10,7 @@ export const metadata: Metadata = {
 };
 
 // PRD Section 6 Step 2 — one dashboard, three sections: upload mapping
-// (ticket 15, below), view current mapping + view reports (ticket 16,
-// not yet built).
+// (ticket 15), view current mapping + view reports (ticket 16).
 export default function AdminDashboardPage() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8">
@@ -22,6 +23,8 @@ export default function AdminDashboardPage() {
       </header>
 
       <UploadMappingSection />
+      <MappingTable />
+      <ReportsTable />
     </div>
   );
 }

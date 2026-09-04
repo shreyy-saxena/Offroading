@@ -1,12 +1,17 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import { uploadMappingAction, type UploadMappingResult } from "./mapping-actions";
 
 // PRD Section 6 Step 2 ("Upload mapping") — this ticket's own
-// success/error UI; the read-only "current mapping" and "reports" views
-// are ticket 16's, not built here.
+// success/error UI. MappingTable/ReportsTable (ticket 16) are separate
+// Server Components rendered once at page load; router.refresh() below
+// is what makes ticket 15's "the read-only view reflects it immediately"
+// acceptance criterion literally true, rather than needing a manual
+// reload after a successful upload.
 export function UploadMappingSection() {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<UploadMappingResult | null>(null);
@@ -21,6 +26,9 @@ export function UploadMappingSection() {
       const csvText = await file.text();
       const outcome = await uploadMappingAction(csvText);
       setResult(outcome);
+      if (outcome.outcome === "replaced") {
+        router.refresh();
+      }
     } catch {
       setResult({ outcome: "invalid", errors: ["Something went wrong uploading the file — please try again."] });
     } finally {
