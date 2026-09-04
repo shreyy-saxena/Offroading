@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { PhotoCard } from "@/components/ui/PhotoCard";
+import { ShareButtons } from "@/components/ui/ShareButtons";
 import { formatSubmittedAt } from "@/lib/reports/format";
 import { getPublicReportById } from "@/lib/reports/public-feed";
+import { getReportPermalinkUrl } from "@/lib/site-url";
 
 type ReportPageProps = { params: Promise<{ id: string }> };
 
@@ -25,6 +27,7 @@ export async function generateMetadata({ params }: ReportPageProps): Promise<Met
 
   const title = reportTitle(report);
   const description = `Reported by a ${reporterLabel(report.reporterType).toLowerCase()} · ${formatSubmittedAt(report.createdAt)}`;
+  const url = await getReportPermalinkUrl(report.id);
 
   return {
     title,
@@ -33,6 +36,7 @@ export async function generateMetadata({ params }: ReportPageProps): Promise<Met
       title,
       description,
       images: [{ url: report.photoUrl }],
+      url,
       type: "article",
     },
     twitter: {
@@ -48,12 +52,18 @@ export default async function ReportPermalinkPage({ params }: ReportPageProps) {
   const { id } = await params;
   const report = await getPublicReportById(id);
   if (!report) notFound();
+  const permalinkUrl = await getReportPermalinkUrl(report.id);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8 pb-28">
       <PhotoCard
         src={report.photoUrl}
         alt=""
+        overlay={
+          <div className="flex justify-end">
+            <ShareButtons url={permalinkUrl} locality={report.locality} district={report.district} />
+          </div>
+        }
         footer={
           <div>
             <p className="text-body text-ink">

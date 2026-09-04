@@ -24,7 +24,13 @@ export function PhotoCard({ src, alt, overlay, footer, className = "" }: PhotoCa
       <div className="relative aspect-square w-full">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={alt} className="h-full w-full object-cover" />
-        {overlay ? <div className="absolute inset-0 p-3">{overlay}</div> : null}
+        {/* pointer-events-none: this wrapper spans the whole photo so
+            overlay content can be positioned in any corner, but its own
+            empty space must not block clicks on whatever sits behind
+            the photo (e.g. ticket 13's full-card link on a feed card).
+            The overlay's own interactive elements re-enable pointer
+            events on themselves (see IconButton). */}
+        {overlay ? <div className="pointer-events-none absolute inset-0 p-3">{overlay}</div> : null}
       </div>
       {footer ? <div className="p-4">{footer}</div> : null}
     </div>

@@ -1,8 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { trackRow } from "./support/db";
 import { insertReport } from "@/lib/reports/submit-report";
 import { getPublicReportById } from "@/lib/reports/public-feed";
-import { generateMetadata } from "@/app/reports/[id]/page";
+
+// getReportPermalinkUrl (src/lib/site-url.ts) needs next/headers'
+// headers(), which only works inside a real Next.js request — mocked
+// here the same way tests elsewhere mock next/navigation for router
+// hooks, so generateMetadata is directly callable as a plain function.
+vi.mock("next/headers", () => ({
+  headers: async () =>
+    new Map([
+      ["host", "offroading.example"],
+      ["x-forwarded-proto", "https"],
+    ]),
+}));
+
+const { generateMetadata } = await import("@/app/reports/[id]/page");
 
 const SENSITIVE_CONTACT = {
   name: "Should Never Appear",
@@ -61,6 +74,7 @@ describe("Report permalink (ticket 12)", () => {
 
     expect(metadata.title).toBe("Pothole reported in Metadata Locality, Bengaluru Urban");
     expect(metadata.openGraph?.images).toEqual([{ url: "https://example.com/og-photo.jpg" }]);
+    expect(metadata.openGraph).toMatchObject({ url: `https://offroading.example/reports/${id}` });
     expect(metadata.twitter).toMatchObject({
       card: "summary_large_image",
       images: ["https://example.com/og-photo.jpg"],
