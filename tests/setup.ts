@@ -17,6 +17,7 @@ if (!process.env.RESEND_API_KEY) {
 import { mswServer } from "./support/msw-server";
 import { cleanupTrackedRows } from "./support/db";
 import { cleanupTrackedStorageObjects } from "./support/storage";
+import { cleanupTrackedTestUsers } from "./support/auth";
 
 beforeAll(() => {
   // "bypass" lets real network calls (the Supabase REST calls the DB
@@ -29,6 +30,7 @@ afterEach(async () => {
   mswServer.resetHandlers();
   await cleanupTrackedRows();
   await cleanupTrackedStorageObjects();
+  await cleanupTrackedTestUsers();
 });
 
 afterAll(() => {
