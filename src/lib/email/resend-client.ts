@@ -13,7 +13,10 @@ export class ResendError extends Error {
 }
 
 type SendEmailInput = {
-  to: string;
+  // A state can have more than one designated authority address on file
+  // — Resend accepts an array of recipients on a single send, same as a
+  // single string.
+  to: string | string[];
   subject: string;
   html: string;
 };

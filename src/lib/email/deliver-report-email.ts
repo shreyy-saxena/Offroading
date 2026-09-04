@@ -16,7 +16,7 @@ function delay(ms: number): Promise<void> {
 // whichever report row it belongs to (ticket 08 for the immediate-send
 // path, ticket 15 for the later-triggered queued path) — see this
 // ticket's Comments for why.
-async function sendWithRetry(input: { to: string; subject: string; html: string }): Promise<DeliveryOutcome> {
+async function sendWithRetry(input: { to: string | string[]; subject: string; html: string }): Promise<DeliveryOutcome> {
   let lastError = "Unknown error";
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -72,10 +72,10 @@ function renderComplaintEmailHtml(details: ReportEmailDetails): string {
 
 export async function sendComplaintEmail(
   details: ReportEmailDetails,
-  authorityEmail: string,
+  authorityEmails: string[],
 ): Promise<DeliveryOutcome> {
   return sendWithRetry({
-    to: authorityEmail,
+    to: authorityEmails,
     subject: `Pothole reported in ${details.locality}, ${details.district}`,
     html: renderComplaintEmailHtml(details),
   });

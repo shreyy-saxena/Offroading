@@ -42,7 +42,8 @@ export function UploadMappingSection() {
       <div>
         <h2 className="text-body font-semibold text-ink">Upload mapping</h2>
         <p className="text-caption text-muted">
-          A two-column CSV (district, authority email). Replaces the entire current mapping.
+          A two-column CSV (state, authority email). Separate multiple emails in a cell with a semicolon (;).
+          Replaces the entire current mapping — every district in a state routes to that state&apos;s address(es).
         </p>
       </div>
 
@@ -59,7 +60,7 @@ export function UploadMappingSection() {
 
       {result?.outcome === "replaced" ? (
         <p className="text-caption text-ink">
-          Mapping replaced — {result.districtCount} district{result.districtCount === 1 ? "" : "s"}.
+          Mapping replaced — {result.stateCount} state{result.stateCount === 1 ? "" : "s"}.
           {result.triggeredSends > 0
             ? ` ${result.triggeredSends} previously queued report${result.triggeredSends === 1 ? "" : "s"} sent.`
             : ""}

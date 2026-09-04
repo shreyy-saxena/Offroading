@@ -56,7 +56,7 @@ Potholes on public roads go unreported or unreported *effectively* — a citizen
 
 1. **Login** — admin signs in (email + password). There is no self-serve signup; accounts are created for trusted individuals directly by whoever operates the app.
 2. **Dashboard**, with:
-   - **Upload mapping** — admin uploads a CSV file with two columns: district/area name, authority email address. Uploading a new file **replaces** the current mapping in full (not a merge) — this is the single source of truth for where complaint emails go.
+   - **Upload mapping** — admin uploads a CSV file with two columns: state name, authority email address(es). **Changed 2026-09-04** — see Section 12.5: collecting a distinct email per district turned out not to be logistically possible, so the mapping is keyed by state instead, and a cell may hold more than one address. Uploading a new file **replaces** the current mapping in full (not a merge) — this is the single source of truth for where complaint emails go.
      - Uploading a mapping that newly covers an area with reports sitting in the "queued" state (from step 8c above) automatically triggers those queued emails to send, with no extra step for the admin.
    - **View current mapping** — a read-only table of the area → email pairs currently in effect.
    - **View reports** — a table of all submitted reports, including fields not shown on the public feed: reporter name/mobile/email, and email delivery status (sent / failed / queued / not applicable / error detail).
@@ -73,7 +73,7 @@ This feed is also the exit destination when a citizen taps the close ("×") cont
 - **FR2**: Location is captured via device GPS; the system must resolve it to a human-readable area name and let the user confirm/correct it before submitting.
 - **FR3**: A submitted report is always saved, regardless of which path the user takes through the email-related choices — nothing is ever silently discarded.
 - **FR4**: Email delivery status is tracked per report (not applicable / sent / failed / queued for later) and is visible to admins only.
-- **FR5**: The district → authority-email mapping is fully admin-controlled via CSV upload; citizens never see or edit it directly.
+- **FR5**: The state → authority-email mapping is fully admin-controlled via CSV upload; citizens never see or edit it directly. (Changed 2026-09-04 from district → authority-email — see Section 12.5.)
 - **FR6**: A CSV upload that contains invalid rows (e.g. malformed email) is rejected in full with a clear explanation — no partial/corrupted mapping state.
 - **FR7**: Only accounts explicitly designated as admins can reach the admin dashboard; this check happens on every request, not just at login.
 - **FR8**: The public feed never exposes reporter contact details or email-send diagnostics.
@@ -89,7 +89,7 @@ This feed is also the exit destination when a citizen taps the close ("×") cont
 
 ## 10. Open Questions / Assumptions Going Into Design
 
-- Assumption: one authority email per district is sufficient (no multiple recipients or CC chains) for v1.
+- Assumption: one authority email per district is sufficient (no multiple recipients or CC chains) for v1. **Superseded 2026-09-04** — see Section 12.5: the mapping is per-state, and a state may list multiple recipient addresses.
 - Assumption: admins are a small, manually-managed set of trusted individuals; no need for self-service admin invites in v1.
 - Open: what happens if two different admins upload conflicting CSVs around the same time — v1 assumes low enough admin activity that last-write-wins is acceptable.
 - Open: whether photo storage/bandwidth limits need attention if usage grows significantly — not a v1 concern at expected initial scale.
@@ -111,7 +111,7 @@ Resolves the open questions in Sections 10–11 and fixes the technical approach
 - **Framework/hosting**: Next.js deployed on Vercel.
 - **Backend**: Supabase (Postgres, Auth, Storage) — satisfies Goal 5 (no ops team, no manual server maintenance) end to end.
 - **Geographic scope**: India only for v1.
-- **Location granularity**: locality (fine-grained), always nested inside a district. The admin mapping in Section 6 remains district → authority email (two columns), unchanged — locality is used for area confirmation and public feed display; the app resolves each locality to its parent district for email routing.
+- **Location granularity**: locality (fine-grained), always nested inside a district, itself nested inside a state. Locality is used for area confirmation and public feed display; the app resolves each locality to its parent district, and that district to its parent state, for email routing (Section 12.5).
 
 ### 12.2 Location Resolution
 
@@ -123,7 +123,7 @@ Resolves the open questions in Sections 10–11 and fixes the technical approach
 ### 12.3 Admin
 
 - **Admin account creation**: manual row insert in the Supabase dashboard — no self-serve tooling (extends the assumption in Section 10).
-- **CSV validation (extends FR6)**: an uploaded mapping is validated both for email format and for district names, checked against the canonical district table (12.2); any invalid row rejects the whole file with a clear explanation.
+- **CSV validation (extends FR6)**: an uploaded mapping is validated both for email format and for state names, checked against the canonical district table's state list (12.2); any invalid row rejects the whole file with a clear explanation. (Changed 2026-09-04 from district names — see Section 12.5.)
 - **Admin dashboard scope**: remains read-only as specified in Section 6 — no manual "retry send" action.
 
 ### 12.4 Email Delivery
@@ -131,6 +131,13 @@ Resolves the open questions in Sections 10–11 and fixes the technical approach
 - **Provider**: Resend, launching on its shared sandbox sending domain for v1 (a dedicated verified domain is deferred until one is available).
 - **Failed sends**: retried automatically with backoff (a few attempts); a send that fails permanently (e.g. a bad authority address) stays "failed" and visible to admins per FR4 — recovery is via the admin updating the mapping through the normal CSV workflow, not a dashboard action.
 - **Queued-email confirmation**: when a queued report's email is triggered by a later CSV upload (Step 6.2), the original reporter receives a short confirmation email, since their address was already captured in Step 7.
+
+### 12.5 State-Level Fallback Mapping (Addendum — 2026-09-04)
+
+- **Why**: collecting a distinct authority email per district (Section 6, 12.1) turned out not to be logistically possible. The fallback is to collect authority email address(es) per **state** instead.
+- **Mapping shape**: the admin CSV (Section 6 Step 2) is still two columns, but the first column is now a state name (validated against the states present in the canonical district table, 12.2) rather than a district/area name. The second column may hold more than one address — multiple recipients in one cell are separated by a semicolon (`;`), since a comma is already the column separator.
+- **Routing**: every district within a state routes complaint emails to that state's address(es) — resolved via the district's state on the canonical district table, not stored per-district. A queued report (Step 8c) becomes sendable the moment its district's *state* is covered by an upload, same trigger mechanism as before (Section 6.2), just keyed one level up.
+- **Multiple recipients**: when a state lists more than one address, the complaint email is sent once with every listed address as a recipient (not one email per address) — this supersedes the Section 10 assumption of one address per district with no multiple recipients.
 
 ### 12.5 Public Feed & Storage
 

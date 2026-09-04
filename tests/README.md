@@ -4,7 +4,7 @@ This is the project's first test infrastructure (ticket 03) and is meant to be c
 
 ## 1. Real-DB harness (`tests/support/db.ts`)
 
-Tests exercise the actual `reports`/`district_mapping` tables via a service-role Supabase client — never a mocked database layer. `testDbClient()` gets you the client; call `trackRow(table, id)` right after any insert your test owns, and the global `afterEach` (in `tests/setup.ts`) deletes it automatically. Don't leave rows untracked — this harness runs against the same Supabase project as local dev (see "Why no separate test project" below), so untracked rows leak into it.
+Tests exercise the actual `reports`/`state_mapping` tables via a service-role Supabase client — never a mocked database layer. `testDbClient()` gets you the client; call `trackRow(table, id)` right after any insert your test owns, and the global `afterEach` (in `tests/setup.ts`) deletes it automatically. Don't leave rows untracked — this harness runs against the same Supabase project as local dev (see "Why no separate test project" below), so untracked rows leak into it.
 
 Once route handlers/server actions exist (from ticket 05 onward), prefer calling *those* in tests rather than hitting the DB client directly — the spec's primary seam is "the route handlers / server actions backing report submission, CSV upload, and feed retrieval," not the database itself. The two sample tests here predate any route handlers, so they exercise the DB directly as a stand-in.
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { getAdminUser } from "@/lib/auth/admin";
-import { replaceDistrictMapping, type UploadMappingResult } from "@/lib/admin/district-mapping";
+import { replaceStateMapping, type UploadMappingResult } from "@/lib/admin/state-mapping";
 import { createClient } from "@/lib/supabase/server";
 
 export type { UploadMappingResult };
@@ -20,5 +20,5 @@ export async function uploadMappingAction(csvText: string): Promise<UploadMappin
     throw new Error("Unauthorized");
   }
 
-  return replaceDistrictMapping(csvText);
+  return replaceStateMapping(csvText);
 }

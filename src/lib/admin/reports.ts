@@ -81,7 +81,7 @@ function extractStoragePath(photoUrl: string): string | null {
 
 // Admin-only, irreversible (caller — the Server Action — is responsible
 // for re-checking admin status; this function trusts its caller, same
-// pattern as replaceDistrictMapping). Deletes the report rows first
+// pattern as replaceStateMapping). Deletes the report rows first
 // (the part a citizen or admin can actually observe), then best-effort
 // cleans up each photo from Storage — a photo failing to delete just
 // leaves an orphaned file, not a dangling reference anything can reach,

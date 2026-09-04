@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { parseDistrictMappingCsv, type DistrictMappingRow } from "@/lib/csv/district-mapping";
+import { parseStateMappingCsv, type StateMappingRow } from "@/lib/csv/state-mapping";
+import { DISTRICTS, findCanonicalDistrict } from "@/lib/data/districts";
 import { sendComplaintEmail, sendQueuedReportConfirmation } from "@/lib/email/deliver-report-email";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export type UploadMappingResult =
-  | { outcome: "replaced"; districtCount: number; triggeredSends: number }
+  | { outcome: "replaced"; stateCount: number; triggeredSends: number }
   | { outcome: "invalid"; errors: string[] };
 
 type QueuedReportRow = {
@@ -20,14 +21,21 @@ type QueuedReportRow = {
   reporter_email: string;
 };
 
-// A currently-`queued` report's district necessarily had no mapping as of
-// submission (ticket 08 only queues when lookupAuthorityEmail returns
-// null) — so any district that appears in a freshly-replaced mapping is,
-// by construction, newly covered. No need to diff the old mapping against
+// A currently-`queued` report's district necessarily had no covering
+// state on file as of submission (ticket 08 only queues when
+// lookupAuthorityEmails returns null) — so any state that appears in a
+// freshly-replaced mapping newly covers every queued report sitting in
+// one of that state's districts. No need to diff the old mapping against
 // the new one.
-async function triggerQueuedReports(db: SupabaseClient, rows: DistrictMappingRow[]): Promise<number> {
-  const authorityEmailByDistrict = new Map(rows.map((row) => [row.district, row.authorityEmail]));
-  const districts = [...authorityEmailByDistrict.keys()];
+async function triggerQueuedReports(db: SupabaseClient, rows: StateMappingRow[]): Promise<number> {
+  const authorityEmailsByState = new Map(rows.map((row) => [row.state, row.authorityEmails]));
+  const coveredStates = new Set(authorityEmailsByState.keys());
+  if (coveredStates.size === 0) return 0;
+
+  // The mapping is keyed by state, but `reports.district` is what's on
+  // each row — expand the covered states out to every district within
+  // them so the query can still filter on `reports.district`.
+  const districts = DISTRICTS.filter((d) => coveredStates.has(d.state)).map((d) => d.name);
   if (districts.length === 0) return 0;
 
   const { data: queuedReports, error } = await db
@@ -39,8 +47,9 @@ async function triggerQueuedReports(db: SupabaseClient, rows: DistrictMappingRow
 
   let triggered = 0;
   for (const report of (queuedReports ?? []) as QueuedReportRow[]) {
-    const authorityEmail = authorityEmailByDistrict.get(report.district);
-    if (!authorityEmail) continue; // defensive — can't happen given the .in() filter above
+    const state = findCanonicalDistrict(report.district)?.state;
+    const authorityEmails = state ? authorityEmailsByState.get(state) : undefined;
+    if (!authorityEmails) continue; // defensive — can't happen given the .in() filter above
 
     const outcome = await sendComplaintEmail(
       {
@@ -54,7 +63,7 @@ async function triggerQueuedReports(db: SupabaseClient, rows: DistrictMappingRow
         reporterMobile: report.reporter_mobile,
         reporterEmail: report.reporter_email,
       },
-      authorityEmail,
+      authorityEmails,
     );
 
     const { error: updateError } = await db
@@ -83,13 +92,16 @@ async function triggerQueuedReports(db: SupabaseClient, rows: DistrictMappingRow
   return triggered;
 }
 
-// PRD Section 6 Step 2 / FR5 / FR6 / spec stories 20-23. Caller (the
+// Fallback for state-level authority-email mapping — collecting a
+// separate email per district isn't logistically possible, so an admin
+// instead uploads one or more authority addresses per state, and every
+// district within that state routes complaint emails there. Caller (the
 // Server Action) is responsible for the admin re-check — Server Actions
 // are reachable as direct POST requests regardless of what page rendered
 // them, so a page-level guard (ticket 14's layout) does not protect this
 // function's entry point on its own.
-export async function replaceDistrictMapping(csvText: string): Promise<UploadMappingResult> {
-  const parsed = parseDistrictMappingCsv(csvText);
+export async function replaceStateMapping(csvText: string): Promise<UploadMappingResult> {
+  const parsed = parseStateMappingCsv(csvText);
   if (!parsed.ok) {
     return { outcome: "invalid", errors: parsed.errors };
   }
@@ -98,29 +110,29 @@ export async function replaceDistrictMapping(csvText: string): Promise<UploadMap
 
   // Delete-all + insert happens inside this one Postgres function call —
   // one function call is one implicit transaction, so a mid-upload
-  // failure can never leave district_mapping partially replaced (see the
+  // failure can never leave state_mapping partially replaced (see the
   // migration's own comment for why this couldn't be done as two plain
   // supabase-js calls).
-  const { error: replaceError } = await db.rpc("replace_district_mapping", {
-    rows: parsed.rows.map((row) => ({ district: row.district, authority_email: row.authorityEmail })),
+  const { error: replaceError } = await db.rpc("replace_state_mapping", {
+    rows: parsed.rows.map((row) => ({ state: row.state, authority_emails: row.authorityEmails })),
   });
   if (replaceError) throw replaceError;
 
   const triggeredSends = await triggerQueuedReports(db, parsed.rows);
 
-  return { outcome: "replaced", districtCount: parsed.rows.length, triggeredSends };
+  return { outcome: "replaced", stateCount: parsed.rows.length, triggeredSends };
 }
 
-export type DistrictMappingEntry = { district: string; authorityEmail: string };
+export type StateMappingEntry = { state: string; authorityEmails: string[] };
 
-// Ticket 16's "view current mapping" — a plain Server Component data
-// read reached only through the (protected) layout's render tree (unlike
-// replaceDistrictMapping above, this isn't a Server Action, so the
-// layout's admin check does cover it; nothing extra to re-check here).
-export async function listDistrictMapping(): Promise<DistrictMappingEntry[]> {
+// Admin's "view current mapping" — a plain Server Component data read
+// reached only through the (protected) layout's render tree (unlike
+// replaceStateMapping above, this isn't a Server Action, so the layout's
+// admin check does cover it; nothing extra to re-check here).
+export async function listStateMapping(): Promise<StateMappingEntry[]> {
   const db = createServiceRoleClient();
-  const { data, error } = await db.from("district_mapping").select("district, authority_email").order("district");
+  const { data, error } = await db.from("state_mapping").select("state, authority_emails").order("state");
   if (error) throw error;
 
-  return (data ?? []).map((row) => ({ district: row.district, authorityEmail: row.authority_email }));
+  return (data ?? []).map((row) => ({ state: row.state, authorityEmails: row.authority_emails }));
 }

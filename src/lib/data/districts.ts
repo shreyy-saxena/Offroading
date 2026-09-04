@@ -171,3 +171,12 @@ export function findCanonicalDistrict(name: string): District | null {
   const normalized = name.trim().toLowerCase();
   return DISTRICTS.find((d) => d.name.toLowerCase() === normalized) ?? null;
 }
+
+// Same case-insensitive normalization as findCanonicalDistrict, for the
+// state-level authority-email mapping (state_mapping table) — validates
+// admin CSV uploads and resolves a report's district to its state for
+// email routing.
+export function findCanonicalState(name: string): string | null {
+  const normalized = name.trim().toLowerCase();
+  return STATES.find((state) => state.toLowerCase() === normalized) ?? null;
+}

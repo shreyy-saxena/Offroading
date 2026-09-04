@@ -1,4 +1,4 @@
-import { isKnownDistrict } from "@/lib/data/districts";
+import { findCanonicalDistrict, isKnownDistrict } from "@/lib/data/districts";
 import { sendComplaintEmail } from "@/lib/email/deliver-report-email";
 import { checkSubmissionRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/reports/rate-limit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -86,18 +86,25 @@ export async function insertReport(params: InsertReportParams): Promise<{ id: st
   return { id: data.id };
 }
 
-// district_mapping has no RLS policies at all (ticket 02) — only reachable
-// via the service-role client, same as this whole module.
-export async function lookupAuthorityEmail(district: string): Promise<string | null> {
+// A separate authority-email address per district isn't logistically
+// collectible, so the mapping is keyed by state instead (state_mapping
+// table, no RLS policies at all — same access model as ticket 02's
+// district_mapping — only reachable via the service-role client, same as
+// this whole module). Every district within a state routes to that
+// state's address(es).
+export async function lookupAuthorityEmails(district: string): Promise<string[] | null> {
+  const state = findCanonicalDistrict(district)?.state;
+  if (!state) return null;
+
   const db = createServiceRoleClient();
   const { data, error } = await db
-    .from("district_mapping")
-    .select("authority_email")
-    .eq("district", district)
+    .from("state_mapping")
+    .select("authority_emails")
+    .eq("state", state)
     .maybeSingle();
 
   if (error) throw error;
-  return data?.authority_email ?? null;
+  return data?.authority_emails ?? null;
 }
 
 // --- Ticket 17: rate-limit-gated submission orchestration ---
@@ -122,7 +129,7 @@ async function checkRateLimit(rateLimitIdentifier: string): Promise<RateLimitedR
 async function sendAndInsertReport(
   input: BaseReportInput,
   contact: ContactDetails,
-  targetEmail: string,
+  targetEmails: string[],
 ): Promise<{ id: string }> {
   const outcome = await sendComplaintEmail(
     {
@@ -136,7 +143,7 @@ async function sendAndInsertReport(
       reporterMobile: contact.mobile,
       reporterEmail: contact.email,
     },
-    targetEmail,
+    targetEmails,
   );
 
   return insertReport({
@@ -181,12 +188,12 @@ export async function submitEmailReport(
 
   assertValidReportInput(input);
 
-  const authorityEmail = await lookupAuthorityEmail(input.district);
-  if (!authorityEmail) {
+  const authorityEmails = await lookupAuthorityEmails(input.district);
+  if (!authorityEmails) {
     return { outcome: "needs-mapping-resolution" };
   }
 
-  const { id } = await sendAndInsertReport(input, contact, authorityEmail);
+  const { id } = await sendAndInsertReport(input, contact, authorityEmails);
   return { outcome: "saved", id };
 }
 
@@ -225,6 +232,6 @@ export async function resolveMissingMapping(
     return { outcome: "saved", id };
   }
 
-  const { id } = await sendAndInsertReport(input, contact, choice.email);
+  const { id } = await sendAndInsertReport(input, contact, [choice.email]);
   return { outcome: "saved", id };
 }

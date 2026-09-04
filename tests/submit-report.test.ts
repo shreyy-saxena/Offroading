@@ -12,7 +12,9 @@ import {
 import { InvalidReportInputError } from "@/lib/reports/submit-report";
 
 const MAPPED_DISTRICT = "Bengaluru Urban";
+const MAPPED_STATE = "Karnataka";
 const UNMAPPED_DISTRICT = "Mumbai City";
+const UNMAPPED_STATE = "Maharashtra";
 const AUTHORITY_EMAIL = "authority@example.com";
 
 function baseInput(district: string): BaseReportInput {
@@ -60,16 +62,16 @@ async function readReport(id: string) {
 describe("submit-report (ticket 08)", () => {
   beforeEach(async () => {
     const db = testDbClient();
-    await db.from("district_mapping").insert({ district: MAPPED_DISTRICT, authority_email: AUTHORITY_EMAIL });
-    trackRow("district_mapping", MAPPED_DISTRICT, "district");
+    await db.from("state_mapping").insert({ state: MAPPED_STATE, authority_emails: [AUTHORITY_EMAIL] });
+    trackRow("state_mapping", MAPPED_STATE, "state");
   });
 
   afterEach(async () => {
     const db = testDbClient();
     // Belt-and-suspenders: the mapping is already tracked for cleanup,
-    // but delete any accidental mapping for the "unmapped" district too,
-    // so a failed run doesn't poison later runs.
-    await db.from("district_mapping").delete().eq("district", UNMAPPED_DISTRICT);
+    // but delete any accidental mapping for the "unmapped" state too, so
+    // a failed run doesn't poison later runs.
+    await db.from("state_mapping").delete().eq("state", UNMAPPED_STATE);
   });
 
   it("'not_applicable': just log it saves with no contact fields", async () => {
