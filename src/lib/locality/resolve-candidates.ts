@@ -22,7 +22,7 @@ function toCandidate(place: GooglePlace): LocalityCandidate | null {
   // unrecognized name — only a place the provider maps onto our own
   // canonical list becomes a candidate (PRD 12.2, spec Implementation
   // Decisions "Canonical district table").
-  const district = address.state_district ? findCanonicalDistrict(address.state_district) : null;
+  const district = address.state_district ? findCanonicalDistrict(address.state_district, address.state) : null;
   if (!locality || !district) return null;
   return { locality, district: district.name };
 }

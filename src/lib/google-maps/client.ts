@@ -58,7 +58,9 @@ function addressFromComponents(components: AddressComponent[]): GoogleAddress {
         type === "administrative_area_level_4",
     ),
   );
-  const matchedDistrict = adminAreaCandidates.find((component) => findCanonicalDistrict(component.long_name));
+  const matchedDistrict = adminAreaCandidates.find((component) =>
+    findCanonicalDistrict(component.long_name, address.state),
+  );
   if (matchedDistrict) address.state_district = matchedDistrict.long_name;
   return address;
 }

@@ -92,6 +92,17 @@ export async function insertReport(params: InsertReportParams): Promise<{ id: st
 // district_mapping — only reachable via the service-role client, same as
 // this whole module). Every district within a state routes to that
 // state's address(es).
+//
+// KNOWN GAP: `district` here is the plain name stored on `reports.district`
+// — no accompanying state, so this can't disambiguate the handful of
+// district names shared by two states (see findCanonicalDistrict's own
+// comment). The GPS/search candidate path (resolve-candidates.ts) already
+// disambiguates before a candidate is ever offered to a citizen, but a
+// manually-typed district name for one of those ambiguous names could
+// still resolve to the wrong state here. Fixing this fully means carrying
+// the state alongside district end-to-end (ConfirmedLocality, BaseReportInput,
+// a `reports` column) — a bigger change than this fix, deliberately not
+// done as part of it.
 export async function lookupAuthorityEmails(district: string): Promise<string[] | null> {
   const state = findCanonicalDistrict(district)?.state;
   if (!state) return null;

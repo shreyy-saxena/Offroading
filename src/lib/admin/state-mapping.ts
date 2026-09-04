@@ -47,6 +47,9 @@ async function triggerQueuedReports(db: SupabaseClient, rows: StateMappingRow[])
 
   let triggered = 0;
   for (const report of (queuedReports ?? []) as QueuedReportRow[]) {
+    // Same known gap as lookupAuthorityEmails: report.district has no
+    // accompanying state, so this can't disambiguate the few district
+    // names shared by two states — see findCanonicalDistrict's comment.
     const state = findCanonicalDistrict(report.district)?.state;
     const authorityEmails = state ? authorityEmailsByState.get(state) : undefined;
     if (!authorityEmails) continue; // defensive — can't happen given the .in() filter above
