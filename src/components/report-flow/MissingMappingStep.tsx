@@ -27,7 +27,12 @@ export function MissingMappingStep({ reportInput, contact }: MissingMappingStepP
     setSubmitting(true);
     setError(null);
     try {
-      await resolveMissingMappingAction(reportInput, contact, choice);
+      const result = await resolveMissingMappingAction(reportInput, contact, choice);
+      if (result.outcome === "rate-limited") {
+        setError(result.message);
+        setSubmitting(false);
+        return;
+      }
       await clearDraft();
       router.push("/feed");
     } catch {

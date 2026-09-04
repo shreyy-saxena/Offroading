@@ -84,7 +84,7 @@ describe("Report draft persistence (ticket 10)", () => {
   });
 
   it("a successful submission clears the draft — a fresh flow afterward starts empty", async () => {
-    submitLoggedReportAction.mockResolvedValue({ id: "report-1" });
+    submitLoggedReportAction.mockResolvedValue({ outcome: "saved", id: "report-1" });
     await buildInProgressDraft();
 
     render(<ReportFlow />);

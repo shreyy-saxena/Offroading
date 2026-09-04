@@ -1,13 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mswServer } from "./support/msw-server";
 import { resendSendFailureHandler, resendSendSuccessHandler } from "./support/fakes/resend";
 import { testDbClient, trackRow } from "./support/db";
 import {
-  resolveMissingMappingAction,
-  submitEmailReportAction,
-  submitLoggedReportAction,
+  resolveMissingMapping,
+  submitEmailReport,
+  submitLoggedReport,
   type BaseReportInput,
-} from "@/app/actions/submit-report";
+} from "@/lib/reports/submit-report";
 import { InvalidReportInputError } from "@/lib/reports/submit-report";
 
 const MAPPED_DISTRICT = "Bengaluru Urban";
@@ -27,6 +28,14 @@ function baseInput(district: string): BaseReportInput {
 
 const CONTACT = { name: "Test Reporter", mobile: "9999999999", email: "reporter@example.com" };
 
+// A fresh identifier per test, not a shared constant — ticket 08's own
+// tests aren't testing rate limiting (ticket 17's own tests do that),
+// and a shared identifier across this file's ~7 submission calls would
+// otherwise trip the real default threshold and break unrelated tests.
+function freshRateLimitIdentifier(): string {
+  return `submit-report-test-${randomUUID()}`;
+}
+
 async function readReport(id: string) {
   const db = testDbClient();
   const { data, error } = await db
@@ -43,7 +52,11 @@ async function readReport(id: string) {
 // Ticket 08's primary seam — integration tests against the real DB
 // (ticket 03 harness), Resend faked for the two branches that send
 // immediately. All four terminal `email_delivery_status` outcomes must
-// be reachable and must always persist a row (FR3).
+// be reachable and must always persist a row (FR3). Calls the pure
+// submitLoggedReport/submitEmailReport/resolveMissingMapping functions
+// directly (not their "use server" action wrappers) — the wrappers
+// resolve a rate-limit identifier via next/headers' headers(), which
+// throws outside a real Next.js request; see ticket 17's Comments.
 describe("submit-report (ticket 08)", () => {
   beforeEach(async () => {
     const db = testDbClient();
@@ -60,10 +73,12 @@ describe("submit-report (ticket 08)", () => {
   });
 
   it("'not_applicable': just log it saves with no contact fields", async () => {
-    const { id } = await submitLoggedReportAction(baseInput(UNMAPPED_DISTRICT));
-    trackRow("reports", id);
+    const result = await submitLoggedReport(baseInput(UNMAPPED_DISTRICT), freshRateLimitIdentifier());
+    expect(result.outcome).toBe("saved");
+    if (result.outcome !== "saved") throw new Error("expected saved");
+    trackRow("reports", result.id);
 
-    const report = await readReport(id);
+    const report = await readReport(result.id);
     expect(report.email_delivery_status).toBe("not_applicable");
     expect(report.reporter_name).toBeNull();
     expect(report.reporter_mobile).toBeNull();
@@ -75,7 +90,7 @@ describe("submit-report (ticket 08)", () => {
   it("'sent': mapping exists, Resend succeeds", async () => {
     mswServer.use(resendSendSuccessHandler);
 
-    const result = await submitEmailReportAction(baseInput(MAPPED_DISTRICT), CONTACT);
+    const result = await submitEmailReport(baseInput(MAPPED_DISTRICT), CONTACT, freshRateLimitIdentifier());
     expect(result.outcome).toBe("saved");
     if (result.outcome !== "saved") throw new Error("expected saved");
     trackRow("reports", result.id);
@@ -89,7 +104,7 @@ describe("submit-report (ticket 08)", () => {
   it("'failed': mapping exists, Resend fails permanently", async () => {
     mswServer.use(resendSendFailureHandler);
 
-    const result = await submitEmailReportAction(baseInput(MAPPED_DISTRICT), CONTACT);
+    const result = await submitEmailReport(baseInput(MAPPED_DISTRICT), CONTACT, freshRateLimitIdentifier());
     expect(result.outcome).toBe("saved");
     if (result.outcome !== "saved") throw new Error("expected saved");
     trackRow("reports", result.id);
@@ -102,26 +117,37 @@ describe("submit-report (ticket 08)", () => {
   });
 
   it("'queued': no mapping, citizen picks queue — no send attempted, contact fields kept for ticket 15", async () => {
-    const check = await submitEmailReportAction(baseInput(UNMAPPED_DISTRICT), CONTACT);
+    const identifier = freshRateLimitIdentifier();
+    const check = await submitEmailReport(baseInput(UNMAPPED_DISTRICT), CONTACT, identifier);
     expect(check).toEqual({ outcome: "needs-mapping-resolution" });
 
-    const { id } = await resolveMissingMappingAction(baseInput(UNMAPPED_DISTRICT), CONTACT, {
-      type: "queue",
-    });
-    trackRow("reports", id);
+    const queueResult = await resolveMissingMapping(
+      baseInput(UNMAPPED_DISTRICT),
+      CONTACT,
+      { type: "queue" },
+      identifier,
+    );
+    expect(queueResult.outcome).toBe("saved");
+    if (queueResult.outcome !== "saved") throw new Error("expected saved");
+    trackRow("reports", queueResult.id);
 
-    const report = await readReport(id);
+    const report = await readReport(queueResult.id);
     expect(report.email_delivery_status).toBe("queued");
     expect(report.reporter_email).toBe(CONTACT.email);
   });
 
   it("no-mapping 'cancel': saves as not_applicable, contact fields dropped", async () => {
-    const { id } = await resolveMissingMappingAction(baseInput(UNMAPPED_DISTRICT), CONTACT, {
-      type: "cancel",
-    });
-    trackRow("reports", id);
+    const cancelResult = await resolveMissingMapping(
+      baseInput(UNMAPPED_DISTRICT),
+      CONTACT,
+      { type: "cancel" },
+      freshRateLimitIdentifier(),
+    );
+    expect(cancelResult.outcome).toBe("saved");
+    if (cancelResult.outcome !== "saved") throw new Error("expected saved");
+    trackRow("reports", cancelResult.id);
 
-    const report = await readReport(id);
+    const report = await readReport(cancelResult.id);
     expect(report.email_delivery_status).toBe("not_applicable");
     expect(report.reporter_email).toBeNull();
   });
@@ -129,19 +155,23 @@ describe("submit-report (ticket 08)", () => {
   it("no-mapping 'provide-email': sends to the citizen-supplied address", async () => {
     mswServer.use(resendSendSuccessHandler);
 
-    const { id } = await resolveMissingMappingAction(baseInput(UNMAPPED_DISTRICT), CONTACT, {
-      type: "provide-email",
-      email: "self-provided@example.com",
-    });
-    trackRow("reports", id);
+    const provideEmailResult = await resolveMissingMapping(
+      baseInput(UNMAPPED_DISTRICT),
+      CONTACT,
+      { type: "provide-email", email: "self-provided@example.com" },
+      freshRateLimitIdentifier(),
+    );
+    expect(provideEmailResult.outcome).toBe("saved");
+    if (provideEmailResult.outcome !== "saved") throw new Error("expected saved");
+    trackRow("reports", provideEmailResult.id);
 
-    const report = await readReport(id);
+    const report = await readReport(provideEmailResult.id);
     expect(report.email_delivery_status).toBe("sent");
   });
 
   it("rejects a district not on the canonical list, even if the client claims a mapping exists for it", async () => {
-    await expect(submitLoggedReportAction(baseInput("Not A Real District"))).rejects.toThrow(
-      InvalidReportInputError,
-    );
+    await expect(
+      submitLoggedReport(baseInput("Not A Real District"), freshRateLimitIdentifier()),
+    ).rejects.toThrow(InvalidReportInputError);
   });
 });

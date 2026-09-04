@@ -53,6 +53,11 @@ export function ContactDetailsStep({
     const contact = { name: name.trim(), mobile: mobile.trim(), email: email.trim() };
     try {
       const result = await submitEmailReportAction(reportInput, contact);
+      if (result.outcome === "rate-limited") {
+        setError(result.message);
+        setSubmitting(false);
+        return;
+      }
       if (result.outcome === "needs-mapping-resolution") {
         onNeedsMappingResolution(contact);
         return;

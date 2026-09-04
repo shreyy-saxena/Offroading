@@ -25,7 +25,12 @@ export function LogOrEmailStep({ reportInput, onChooseEmail }: LogOrEmailStepPro
     setSubmitting(true);
     setError(null);
     try {
-      await submitLoggedReportAction(reportInput);
+      const result = await submitLoggedReportAction(reportInput);
+      if (result.outcome === "rate-limited") {
+        setError(result.message);
+        setSubmitting(false);
+        return;
+      }
       await clearDraft();
       router.push("/feed");
     } catch {

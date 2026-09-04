@@ -60,7 +60,7 @@ describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", ()
   });
 
   it("'Just log it' saves with the accumulated flow state and redirects to the feed, no contact fields ever shown", async () => {
-    submitLoggedReportAction.mockResolvedValue({ id: "report-1" });
+    submitLoggedReportAction.mockResolvedValue({ outcome: "saved", id: "report-1" });
     await reachReporterTypeStep();
 
     fireEvent.click(screen.getByRole("button", { name: "Resident of this area" }));

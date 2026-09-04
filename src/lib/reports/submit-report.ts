@@ -1,4 +1,6 @@
 import { isKnownDistrict } from "@/lib/data/districts";
+import { sendComplaintEmail } from "@/lib/email/deliver-report-email";
+import { checkSubmissionRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/reports/rate-limit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export type ReporterType = "passerby" | "resident";
@@ -96,4 +98,133 @@ export async function lookupAuthorityEmail(district: string): Promise<string | n
 
   if (error) throw error;
   return data?.authority_email ?? null;
+}
+
+// --- Ticket 17: rate-limit-gated submission orchestration ---
+//
+// These take an already-resolved `rateLimitIdentifier` rather than
+// reaching for next/headers themselves, so they're callable directly from
+// a plain test with no real Next.js request context — the thin "use
+// server" wrappers in src/app/actions/submit-report.ts resolve the
+// identifier from the request and delegate here. Mirrors ticket 14's
+// signInAdmin/signInAdminAction split for the same reason (next/headers'
+// headers(), like cookies(), throws "called outside a request scope"
+// when invoked from a plain vitest test — confirmed directly before
+// writing this split).
+
+export type RateLimitedResult = { outcome: "rate-limited"; message: string };
+
+async function checkRateLimit(rateLimitIdentifier: string): Promise<RateLimitedResult | null> {
+  const { allowed } = await checkSubmissionRateLimit(rateLimitIdentifier);
+  return allowed ? null : { outcome: "rate-limited", message: RATE_LIMIT_MESSAGE };
+}
+
+async function sendAndInsertReport(
+  input: BaseReportInput,
+  contact: ContactDetails,
+  targetEmail: string,
+): Promise<{ id: string }> {
+  const outcome = await sendComplaintEmail(
+    {
+      photoUrl: input.photoUrl,
+      locality: input.locality,
+      district: input.district,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      reporterType: input.reporterType,
+      reporterName: contact.name,
+      reporterMobile: contact.mobile,
+      reporterEmail: contact.email,
+    },
+    targetEmail,
+  );
+
+  return insertReport({
+    ...input,
+    contact,
+    emailDeliveryStatus: outcome.status,
+    emailErrorDetail: outcome.status === "failed" ? outcome.error : undefined,
+  });
+}
+
+export type SubmitLoggedReportResult = { outcome: "saved"; id: string } | RateLimitedResult;
+
+// "Just log it" (PRD 5.6) — never touches contact details or email at
+// all, structurally: this function doesn't accept them.
+export async function submitLoggedReport(
+  input: BaseReportInput,
+  rateLimitIdentifier: string,
+): Promise<SubmitLoggedReportResult> {
+  const limited = await checkRateLimit(rateLimitIdentifier);
+  if (limited) return limited;
+
+  const { id } = await insertReport({ ...input, emailDeliveryStatus: "not_applicable" });
+  return { outcome: "saved", id };
+}
+
+export type SubmitEmailReportResult =
+  | { outcome: "saved"; id: string }
+  | { outcome: "needs-mapping-resolution" }
+  | RateLimitedResult;
+
+// PRD 5.8: contact details submitted, district mapping resolved
+// server-side (never trusted from client state) — sends immediately if a
+// mapping exists, otherwise hands back to the client for the three-way
+// choice (resolveMissingMapping) without saving anything yet.
+export async function submitEmailReport(
+  input: BaseReportInput,
+  contact: ContactDetails,
+  rateLimitIdentifier: string,
+): Promise<SubmitEmailReportResult> {
+  const limited = await checkRateLimit(rateLimitIdentifier);
+  if (limited) return limited;
+
+  assertValidReportInput(input);
+
+  const authorityEmail = await lookupAuthorityEmail(input.district);
+  if (!authorityEmail) {
+    return { outcome: "needs-mapping-resolution" };
+  }
+
+  const { id } = await sendAndInsertReport(input, contact, authorityEmail);
+  return { outcome: "saved", id };
+}
+
+export type MissingMappingChoice =
+  | { type: "provide-email"; email: string }
+  | { type: "cancel" }
+  | { type: "queue" };
+
+export type ResolveMissingMappingResult = { outcome: "saved"; id: string } | RateLimitedResult;
+
+// PRD 5.8's exactly-three choices when no mapping is on file — every
+// branch still saves the report (FR3), matching the acceptance criteria.
+export async function resolveMissingMapping(
+  input: BaseReportInput,
+  contact: ContactDetails,
+  choice: MissingMappingChoice,
+  rateLimitIdentifier: string,
+): Promise<ResolveMissingMappingResult> {
+  const limited = await checkRateLimit(rateLimitIdentifier);
+  if (limited) return limited;
+
+  assertValidReportInput(input);
+
+  if (choice.type === "cancel") {
+    // Cancelling the email is structurally identical to "just log it" —
+    // no email was sent, so no reason to retain the contact details that
+    // were only ever collected for a send that didn't happen.
+    const { id } = await insertReport({ ...input, emailDeliveryStatus: "not_applicable" });
+    return { outcome: "saved", id };
+  }
+
+  if (choice.type === "queue") {
+    // Contact fields ARE kept here — ticket 15 needs reporterEmail to
+    // send the queued confirmation once a covering mapping is uploaded.
+    const { id } = await insertReport({ ...input, contact, emailDeliveryStatus: "queued" });
+    return { outcome: "saved", id };
+  }
+
+  const { id } = await sendAndInsertReport(input, contact, choice.email);
+  return { outcome: "saved", id };
 }
