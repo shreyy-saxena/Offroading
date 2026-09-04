@@ -1,11 +1,11 @@
 import { findCanonicalDistrict } from "@/lib/data/districts";
 import {
-  LocationIqError,
+  GoogleMapsError,
   autocompleteLocality,
   nearbyPlaces,
   reverseGeocode,
-  type LocationIqPlace,
-} from "@/lib/locationiq/client";
+  type GooglePlace,
+} from "@/lib/google-maps/client";
 
 export type LocalityCandidate = { locality: string; district: string };
 
@@ -15,11 +15,11 @@ export type ResolveLocalityResult =
 
 const MAX_CANDIDATES = 4;
 
-function toCandidate(place: LocationIqPlace): LocalityCandidate | null {
+function toCandidate(place: GooglePlace): LocalityCandidate | null {
   const address = place.address ?? {};
   const locality = address.suburb || address.neighbourhood || address.city;
   // District is never inferred from free text or guessed from an
-  // unrecognized name — only a place LocationIQ maps onto our own
+  // unrecognized name — only a place the provider maps onto our own
   // canonical list becomes a candidate (PRD 12.2, spec Implementation
   // Decisions "Canonical district table").
   const district = address.state_district ? findCanonicalDistrict(address.state_district) : null;
@@ -39,7 +39,7 @@ function dedupe(candidates: LocalityCandidate[]): LocalityCandidate[] {
   return result;
 }
 
-function toCandidates(places: LocationIqPlace[]): LocalityCandidate[] {
+function toCandidates(places: GooglePlace[]): LocalityCandidate[] {
   return dedupe(
     places.map(toCandidate).filter((candidate): candidate is LocalityCandidate => candidate !== null),
   ).slice(0, MAX_CANDIDATES);
@@ -63,7 +63,7 @@ export async function resolveLocalityCandidates(
     return { ok: false, error: "We couldn't reach our location service — search manually instead." };
   }
 
-  const places: LocationIqPlace[] = [];
+  const places: GooglePlace[] = [];
   if (reverseResult.status === "fulfilled") places.push(reverseResult.value);
   if (nearbyResult.status === "fulfilled") places.push(...nearbyResult.value);
 
@@ -78,7 +78,7 @@ export async function searchLocalities(query: string): Promise<ResolveLocalityRe
     const places = await autocompleteLocality(trimmed);
     return { ok: true, candidates: toCandidates(places) };
   } catch (error) {
-    if (error instanceof LocationIqError) {
+    if (error instanceof GoogleMapsError) {
       return {
         ok: false,
         error: "We couldn't search locations right now — you can still type your locality and pick its district.",

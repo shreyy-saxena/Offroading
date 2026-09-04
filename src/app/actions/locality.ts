@@ -8,7 +8,7 @@ import {
 
 export type { ResolveLocalityResult };
 
-// LOCATIONIQ_API_KEY has no NEXT_PUBLIC_ prefix, so these calls can only
+// GOOGLE_MAPS_API_KEY has no NEXT_PUBLIC_ prefix, so these calls can only
 // run server-side — these actions are the client-callable boundary.
 export async function resolveLocalityCandidatesAction(
   latitude: number,

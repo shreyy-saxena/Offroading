@@ -56,7 +56,7 @@ Potholes on public roads go unreported or unreported *effectively* — a citizen
 
 1. **Login** — admin signs in (email + password). There is no self-serve signup; accounts are created for trusted individuals directly by whoever operates the app.
 2. **Dashboard**, with:
-   - **Upload mapping** — admin uploads a CSV file with two columns: state name, authority email address(es). **Changed 2026-09-04** — see Section 12.5: collecting a distinct email per district turned out not to be logistically possible, so the mapping is keyed by state instead, and a cell may hold more than one address. Uploading a new file **replaces** the current mapping in full (not a merge) — this is the single source of truth for where complaint emails go.
+   - **Upload mapping** — admin uploads a CSV file with two columns: state name, authority email address(es). **Changed 2026-09-04** — see Section 12.7: collecting a distinct email per district turned out not to be logistically possible, so the mapping is keyed by state instead, and a cell may hold more than one address. Uploading a new file **replaces** the current mapping in full (not a merge) — this is the single source of truth for where complaint emails go.
      - Uploading a mapping that newly covers an area with reports sitting in the "queued" state (from step 8c above) automatically triggers those queued emails to send, with no extra step for the admin.
    - **View current mapping** — a read-only table of the area → email pairs currently in effect.
    - **View reports** — a table of all submitted reports, including fields not shown on the public feed: reporter name/mobile/email, and email delivery status (sent / failed / queued / not applicable / error detail).
@@ -73,7 +73,7 @@ This feed is also the exit destination when a citizen taps the close ("×") cont
 - **FR2**: Location is captured via device GPS; the system must resolve it to a human-readable area name and let the user confirm/correct it before submitting.
 - **FR3**: A submitted report is always saved, regardless of which path the user takes through the email-related choices — nothing is ever silently discarded.
 - **FR4**: Email delivery status is tracked per report (not applicable / sent / failed / queued for later) and is visible to admins only.
-- **FR5**: The state → authority-email mapping is fully admin-controlled via CSV upload; citizens never see or edit it directly. (Changed 2026-09-04 from district → authority-email — see Section 12.5.)
+- **FR5**: The state → authority-email mapping is fully admin-controlled via CSV upload; citizens never see or edit it directly. (Changed 2026-09-04 from district → authority-email — see Section 12.7.)
 - **FR6**: A CSV upload that contains invalid rows (e.g. malformed email) is rejected in full with a clear explanation — no partial/corrupted mapping state.
 - **FR7**: Only accounts explicitly designated as admins can reach the admin dashboard; this check happens on every request, not just at login.
 - **FR8**: The public feed never exposes reporter contact details or email-send diagnostics.
@@ -89,7 +89,7 @@ This feed is also the exit destination when a citizen taps the close ("×") cont
 
 ## 10. Open Questions / Assumptions Going Into Design
 
-- Assumption: one authority email per district is sufficient (no multiple recipients or CC chains) for v1. **Superseded 2026-09-04** — see Section 12.5: the mapping is per-state, and a state may list multiple recipient addresses.
+- Assumption: one authority email per district is sufficient (no multiple recipients or CC chains) for v1. **Superseded 2026-09-04** — see Section 12.7: the mapping is per-state, and a state may list multiple recipient addresses.
 - Assumption: admins are a small, manually-managed set of trusted individuals; no need for self-service admin invites in v1.
 - Open: what happens if two different admins upload conflicting CSVs around the same time — v1 assumes low enough admin activity that last-write-wins is acceptable.
 - Open: whether photo storage/bandwidth limits need attention if usage grows significantly — not a v1 concern at expected initial scale.
@@ -111,19 +111,19 @@ Resolves the open questions in Sections 10–11 and fixes the technical approach
 - **Framework/hosting**: Next.js deployed on Vercel.
 - **Backend**: Supabase (Postgres, Auth, Storage) — satisfies Goal 5 (no ops team, no manual server maintenance) end to end.
 - **Geographic scope**: India only for v1.
-- **Location granularity**: locality (fine-grained), always nested inside a district, itself nested inside a state. Locality is used for area confirmation and public feed display; the app resolves each locality to its parent district, and that district to its parent state, for email routing (Section 12.5).
+- **Location granularity**: locality (fine-grained), always nested inside a district, itself nested inside a state. Locality is used for area confirmation and public feed display; the app resolves each locality to its parent district, and that district to its parent state, for email routing (Section 12.7).
 
 ### 12.2 Location Resolution
 
-- **Reverse geocoding provider**: LocationIQ, supplemented by a secondary query (e.g. Overpass) to build the 2–4 candidate locality list required by Step 4 of the citizen flow.
-- **GPS denied/unavailable**: falls back to manual locality search via LocationIQ autocomplete rather than blocking the citizen.
+- **Reverse geocoding provider**: LocationIQ, supplemented by a secondary query (e.g. Overpass) to build the 2–4 candidate locality list required by Step 4 of the citizen flow. (Superseded — see Section 12.8.)
+- **GPS denied/unavailable**: falls back to manual locality search via LocationIQ autocomplete rather than blocking the citizen. (Superseded — see Section 12.8.)
 - **Manual locality entry**: when a citizen types a custom locality instead of picking a suggested candidate, they also select the district from a dropdown (backed by the canonical district table below) rather than the app inferring it from free text.
 - **Canonical district list**: a static table maintained by hand (not sourced live from an external API), used both to validate admin CSV uploads (12.3) and to populate the manual-entry district dropdown. Designed so an optional external sync could be added later without becoming a hard dependency — the app always falls back to the last-known static list and never blocks reporting or CSV validation if an external source is absent or unreachable.
 
 ### 12.3 Admin
 
 - **Admin account creation**: manual row insert in the Supabase dashboard — no self-serve tooling (extends the assumption in Section 10).
-- **CSV validation (extends FR6)**: an uploaded mapping is validated both for email format and for state names, checked against the canonical district table's state list (12.2); any invalid row rejects the whole file with a clear explanation. (Changed 2026-09-04 from district names — see Section 12.5.)
+- **CSV validation (extends FR6)**: an uploaded mapping is validated both for email format and for state names, checked against the canonical district table's state list (12.2); any invalid row rejects the whole file with a clear explanation. (Changed 2026-09-04 from district names — see Section 12.7.)
 - **Admin dashboard scope**: remains read-only as specified in Section 6 — no manual "retry send" action.
 
 ### 12.4 Email Delivery
@@ -131,13 +131,6 @@ Resolves the open questions in Sections 10–11 and fixes the technical approach
 - **Provider**: Resend, launching on its shared sandbox sending domain for v1 (a dedicated verified domain is deferred until one is available).
 - **Failed sends**: retried automatically with backoff (a few attempts); a send that fails permanently (e.g. a bad authority address) stays "failed" and visible to admins per FR4 — recovery is via the admin updating the mapping through the normal CSV workflow, not a dashboard action.
 - **Queued-email confirmation**: when a queued report's email is triggered by a later CSV upload (Step 6.2), the original reporter receives a short confirmation email, since their address was already captured in Step 7.
-
-### 12.5 State-Level Fallback Mapping (Addendum — 2026-09-04)
-
-- **Why**: collecting a distinct authority email per district (Section 6, 12.1) turned out not to be logistically possible. The fallback is to collect authority email address(es) per **state** instead.
-- **Mapping shape**: the admin CSV (Section 6 Step 2) is still two columns, but the first column is now a state name (validated against the states present in the canonical district table, 12.2) rather than a district/area name. The second column may hold more than one address — multiple recipients in one cell are separated by a semicolon (`;`), since a comma is already the column separator.
-- **Routing**: every district within a state routes complaint emails to that state's address(es) — resolved via the district's state on the canonical district table, not stored per-district. A queued report (Step 8c) becomes sendable the moment its district's *state* is covered by an upload, same trigger mechanism as before (Section 6.2), just keyed one level up.
-- **Multiple recipients**: when a state lists more than one address, the complaint email is sent once with every listed address as a recipient (not one email per address) — this supersedes the Section 10 assumption of one address per district with no multiple recipients.
 
 ### 12.5 Public Feed & Storage
 
@@ -148,6 +141,22 @@ Resolves the open questions in Sections 10–11 and fixes the technical approach
 ### 12.6 Client Resilience
 
 - **Offline resilience (extends FR9)**: in-progress report data (photo, GPS point, selections) is persisted locally (IndexedDB) as the citizen moves through the flow, and cleared on successful submit — so a dropped connection immediately before submitting doesn't lose their work.
+
+### 12.7 State-Level Fallback Mapping (Addendum — 2026-09-04)
+
+- **Why**: collecting a distinct authority email per district (Section 6, 12.1) turned out not to be logistically possible. The fallback is to collect authority email address(es) per **state** instead.
+- **Mapping shape**: the admin CSV (Section 6 Step 2) is still two columns, but the first column is now a state name (validated against the states present in the canonical district table, 12.2) rather than a district/area name. The second column may hold more than one address — multiple recipients in one cell are separated by a semicolon (`;`), and extra comma-separated columns are also tolerated as additional emails (a source spreadsheet's own comma-separated cell, exported to CSV, otherwise reads as extra columns).
+- **Routing**: every district within a state routes complaint emails to that state's address(es) — resolved via the district's state on the canonical district table, not stored per-district. A queued report (Step 8c) becomes sendable the moment its district's *state* is covered by an upload, same trigger mechanism as before (Section 6.2), just keyed one level up.
+- **Multiple recipients**: when a state lists more than one address, the complaint email is sent once with every listed address as a recipient (not one email per address) — this supersedes the Section 10 assumption of one address per district with no multiple recipients.
+- **State-name matching**: tolerant of "&"-for-"and", a canonical name's trailing descriptor word being dropped (e.g. "Andaman & Nicobar" for "Andaman and Nicobar Islands"), and a small set of known non-derivable abbreviations (e.g. "DNH" for "Dadra and Nagar Haveli") — extensible if more real-world variants turn up.
+
+### 12.8 Location Provider Migration (Addendum — 2026-09-04)
+
+- **Why**: moved off LocationIQ to Google Maps Platform for reverse geocoding and locality search.
+- **Provider**: Google Maps Platform — Geocoding API (reverse geocoding, legacy REST) plus Places API (New) for Autocomplete and Place Details. The legacy Places API (Nearby Search, Autocomplete, Details) was the original intent but is blocked on newer Google Cloud projects — confirmed live, not assumed — so Autocomplete/Details use Places API (New) instead (POST requests, `X-Goog-Api-Key`/`X-Goog-FieldMask` headers, rather than a `key` query param). Env var `GOOGLE_MAPS_API_KEY` replaces `LOCATIONIQ_API_KEY` (server-only, no `NEXT_PUBLIC_` prefix — same boundary as before).
+- **Candidate list (Section 5 Step 4, 12.2's "secondary query")**: Places Nearby Search cannot serve this purpose at all, on either API vintage — confirmed live that it only indexes POI/business establishments, not administrative localities (even "neighborhood" is rejected as a search-filter type). Instead, the candidate list is built by reverse-geocoding a handful of points sampled a short distance (~400m) from the GPS fix in each cardinal direction, reusing the primary reverse-geocode call's own logic — a citizen genuinely near a boundary between two areas gets back distinct localities from different sample points; this replaces the original plan of a Places-based nearby search, and supersedes 12.2's Overpass mention (which, per 12.2's original wording, was only ever offered as a hypothetical example and never actually built — LocationIQ's own Nearby endpoint filled that role instead).
+- **Manual search fallback**: now Places Autocomplete (New) (`includedRegionCodes: ["in"]`), replacing LocationIQ's autocomplete — same trigger (GPS denied/unavailable) and same user-facing behavior. Each prediction needs a follow-up Place Details (New) call to resolve its district, since predictions alone carry no address components.
+- **District matching**: unchanged in principle — still strict against the static canonical district table (12.2), never inferred or fuzzy-matched — but the *mechanism* changed after a live bug was found: Google does not put a district at a fixed administrative-area level consistently (e.g. Karnataka has an extra "Bangalore Division" layer between state and district), so the client checks every admin-area level against the canonical district table and uses whichever one actually matches, rather than trusting a fixed level number.
 
 ## 13. Social Sharing (Design Addition — 2026-09-03)
 

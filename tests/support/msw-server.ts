@@ -1,7 +1,8 @@
 import { setupServer } from "msw/node";
-import { locationIqHandlers } from "./fakes/locationiq";
+import { googleMapsHandlers } from "./fakes/google-maps";
 
-// LocationIQ is registered by default since almost every citizen-flow
-// test will hit it incidentally; Resend handlers are added per-test via
+// Google Maps' reverse-geocode happy path is registered by default since
+// almost every citizen-flow test will hit it incidentally; Resend
+// handlers (and Google Maps' other endpoints) are added per-test via
 // mswServer.use(...) since success/failure needs to vary per test.
-export const mswServer = setupServer(...locationIqHandlers);
+export const mswServer = setupServer(...googleMapsHandlers);
