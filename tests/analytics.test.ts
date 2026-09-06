@@ -41,7 +41,13 @@ describe("trackEvent", () => {
     trackEvent("location_confirmed");
 
     expect(initMock).toHaveBeenCalledTimes(1);
-    expect(initMock).toHaveBeenCalledWith("test-token", expect.objectContaining({ ip: false }));
+    expect(initMock).toHaveBeenCalledWith(
+      "test-token",
+      // This project uses EU data residency — Mixpanel requires the EU
+      // ingestion host explicitly, or events are accepted (status: 1)
+      // but never actually land in the project's data store.
+      expect.objectContaining({ ip: false, api_host: "https://api-eu.mixpanel.com" }),
+    );
     expect(trackMock).toHaveBeenNthCalledWith(1, "photo_captured");
     expect(trackMock).toHaveBeenNthCalledWith(2, "location_confirmed");
   });
