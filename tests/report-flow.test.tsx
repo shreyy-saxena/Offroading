@@ -3,6 +3,7 @@ import "./support/react-testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReportFlow } from "@/components/report-flow/ReportFlow";
+import { markOnboardingSeen } from "@/components/report-flow/onboarding-store";
 import { samplePhotoFile } from "./support/sample-file";
 
 const pushMock = vi.fn();
@@ -43,6 +44,10 @@ function stubGeolocation(
 describe("ReportFlow — hero screen (ticket 05)", () => {
   beforeEach(() => {
     pushMock.mockClear();
+    // These tests are about the camera/GPS hand-off, not the onboarding
+    // gate — mark it seen so the flow starts at the photo step, as it did
+    // before onboarding existed.
+    markOnboardingSeen();
   });
 
   it("navigates to the feed with no confirmation when close is tapped, before anything is captured", () => {

@@ -3,6 +3,7 @@ import "./support/react-testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReportFlow } from "@/components/report-flow/ReportFlow";
+import { markOnboardingSeen } from "@/components/report-flow/onboarding-store";
 import { samplePhotoFile } from "./support/sample-file";
 
 const pushMock = vi.fn();
@@ -57,6 +58,7 @@ async function reachReporterTypeStep() {
 describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    markOnboardingSeen();
   });
 
   it("'Just log it' saves with the accumulated flow state and redirects to the feed, no contact fields ever shown", async () => {
@@ -116,6 +118,7 @@ describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", ()
 describe("ReportFlow — offline submission handling (ticket 18)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    markOnboardingSeen();
   });
 
   afterEach(() => {

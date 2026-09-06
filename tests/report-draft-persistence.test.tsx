@@ -3,6 +3,7 @@ import "./support/react-testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReportFlow } from "@/components/report-flow/ReportFlow";
+import { markOnboardingSeen } from "@/components/report-flow/onboarding-store";
 import { samplePhotoFile } from "./support/sample-file";
 
 const pushMock = vi.fn();
@@ -61,6 +62,7 @@ async function buildInProgressDraft() {
 describe("Report draft persistence (ticket 10)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    markOnboardingSeen();
   });
 
   it("offers to resume mid-flow state after a simulated reload, with prior selections intact", async () => {

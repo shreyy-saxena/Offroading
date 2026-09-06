@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Logo } from "@/components/ui/Logo";
 import { LogoutButton } from "./LogoutButton";
 import { MappingTable } from "./MappingTable";
 import { ReportsTable } from "./ReportsTable";
@@ -16,6 +17,7 @@ export default function AdminDashboardPage() {
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8">
       <header className="flex items-center justify-between gap-4">
         <div>
+          <Logo />
           <h1 className="text-heading text-ink">Admin dashboard</h1>
           <p className="text-body text-muted">Offroading</p>
         </div>

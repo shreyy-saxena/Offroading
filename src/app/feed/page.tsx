@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { Logo } from "@/components/ui/Logo";
 import { ShareButtons } from "@/components/ui/ShareButtons";
 import { formatSubmittedAt } from "@/lib/reports/format";
 import { listPublicReports } from "@/lib/reports/public-feed";
@@ -29,7 +30,8 @@ export default async function FeedPage() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 pb-28">
-      <header>
+      <header className="flex flex-col gap-1">
+        <Logo />
         <h1 className="text-heading text-ink">Reports</h1>
         <p className="text-body text-muted">Potholes reported by citizens.</p>
       </header>

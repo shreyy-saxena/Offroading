@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { Logo } from "@/components/ui/Logo";
 import { signInAdminAction } from "./actions";
 
 const inputClassName = "rounded-card border border-hairline bg-surface px-4 py-3 text-body text-ink";
@@ -39,6 +40,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="flex min-h-svh flex-col justify-center gap-6 px-6 py-10">
       <header className="flex flex-col gap-1">
+        <Logo />
         <h1 className="text-heading text-ink">Admin sign in</h1>
         <p className="text-body text-muted">Invite-only access to the Offroading dashboard.</p>
       </header>

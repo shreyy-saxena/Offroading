@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { Logo } from "@/components/ui/Logo";
 import { PhotoCard } from "@/components/ui/PhotoCard";
 import { ShareButtons } from "@/components/ui/ShareButtons";
 import { formatSubmittedAt } from "@/lib/reports/format";
@@ -56,6 +57,7 @@ export default async function ReportPermalinkPage({ params }: ReportPageProps) {
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8 pb-28">
+      <Logo />
       <PhotoCard
         src={report.photoUrl}
         alt=""
