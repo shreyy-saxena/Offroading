@@ -35,7 +35,7 @@ Potholes on public roads go unreported or unreported *effectively* — a citizen
 
 ## 5. Core User Flow — Citizen Report
 
-1. **Landing / Photo (hero flow)** — the app opens directly into the photo-capture screen; there is no separate landing menu or button to tap first — opening the app *is* starting a report. A close ("×") control sits in the top-right corner of this screen; since nothing has been captured yet, tapping it exits immediately with no confirmation prompt and takes the user to the public feed (Section 7) — the same destination as a completed submission (Step 9).
+1. **Landing / Photo (hero flow)** — the app opens directly into the photo-capture screen; there is no separate landing menu or button to tap first — opening the app *is* starting a report. **Changed 2026-09-06** — see Section 15: a first-visit-only onboarding carousel now precedes this screen for a citizen who has never opened the app before; every return visit (and every visit after the carousel is dismissed) goes straight to the photo-capture screen as originally described here. A close ("×") control sits in the top-right corner of this screen; since nothing has been captured yet, tapping it exits immediately with no confirmation prompt and takes the user to the public feed (Section 7) — the same destination as a completed submission (Step 9).
 2. **Photo** *(same screen as Step 1)* — user takes or uploads a photo of the pothole.
 3. **Location capture** — app automatically requests the device's GPS location (browser permission prompt).
 4. **Area confirmation** — because a GPS point can sit near the edge of more than one administrative area, the app doesn't just silently pick one. It shows the user a short list (2–4) of candidate area/district names for that location, and the user picks the correct one. If none of the suggestions are right, the user can type the area name themselves.
@@ -79,7 +79,8 @@ This feed is also the exit destination when a citizen taps the close ("×") cont
 - **FR8**: The public feed never exposes reporter contact details or email-send diagnostics.
 - **FR9**: The app is installable to a phone home screen (PWA) and its basic shell loads even with a flaky connection; actual data submission requires connectivity.
 - **FR10**: Each report has a public permalink page showing the same fields as the public feed, carrying Open Graph metadata for link unfurling, and offering Twitter and native-share options — never reporter contact details (extends FR8).
-- **FR11**: The app's hero screen is the photo-capture step itself, with no intermediate landing menu; a close ("×") control on that screen exits to the public feed with no confirmation required.
+- **FR11**: The app's hero screen is the photo-capture step itself, with no intermediate landing menu; a close ("×") control on that screen exits to the public feed with no confirmation required. (Amended 2026-09-06 — see Section 15: a first-visit-only onboarding carousel precedes this screen for a citizen's very first visit only; FR11 holds unchanged for every visit after that.)
+- **FR12**: The app tracks anonymous, property-free funnel events (no PII, GPS, or report content) for the citizen report flow, to measure step-by-step drop-off — see Section 16.
 
 ## 9. Success Criteria (initial, informal)
 
@@ -184,7 +185,7 @@ A new public, no-login route (e.g. `/reports/[id]`) shows a single report: photo
 
 ### 13.5 Non-goals
 
-- No share-count analytics or tracking of shares in v1.
+- ~~No share-count analytics or tracking of shares in v1.~~ **Reversed 2026-09-06** — anonymous share-intent tracking (`shared_on_x`/`shared_generic`) added as part of the broader funnel-tracking work; see Section 16.
 - No auto-posting to an official/organizational social account.
 - No social login or connected account — sharing always goes through the platform's own share/intent flow in the citizen's current browser session.
 
@@ -214,3 +215,45 @@ Reference: a photo-forward, minimal mobile app mockup supplied during design rev
 
 - Profile avatar / personalized greeting — no accounts for citizens.
 - Heart/favorite icons, star ratings, review counts, pricing, and booking CTAs — no equivalents in this domain.
+
+## 15. Onboarding & Branding (Design Addition — 2026-09-06)
+
+Extends Section 5, Step 1 and FR11. The app opening directly into the camera, then immediately requesting GPS location, read as a privacy red flag to first-time users with no context for why. This section addresses that without adding friction for anyone who has already been through it.
+
+### 15.1 First-visit onboarding carousel
+
+A 3-slide, no-skip carousel shown **only** on a citizen's first-ever visit (tracked via a local, on-device flag — not an account or server-side record): "Click & report potholes near you" (what the app does) → "How it works" (photo → confirm location → log it or email the authority, can also share on social media) → "No login needed" (reassurance + a **Let's Go** call to action). Every visit after the first goes straight to the photo-capture screen (Section 5, Step 1) as originally specified — the carousel exists exactly once per device/browser.
+
+No skip control was a deliberate choice: the three slides are short enough that requiring them costs little, and they're precisely the context (what/how/no-login) meant to resolve the privacy doubt the direct-to-camera opening otherwise raises.
+
+### 15.2 App branding / logo
+
+A car-and-pothole illustrated badge (supplied by the app owner) is used as the PWA's home-screen icon and browser favicon, and appears in the corner of every screen **except** the camera/photo-capture screen (Section 5, Step 1), which stays a full-bleed, chrome-free viewfinder by design. The logo's background is rendered transparent (not carrying its own off-white halo) so it sits naturally on whatever screen background it appears against.
+
+## 16. Analytics (Design Addition — 2026-09-06)
+
+### 16.1 Purpose
+
+Anonymous funnel measurement of the citizen report flow (Section 5) — specifically, how many citizens reach each step, so drop-off/churn between steps is visible. No admin-dashboard analytics in this pass (Section 6).
+
+### 16.2 Events tracked
+
+Seven bare, property-free events, each firing at one specific point in the existing flow:
+
+| Event | Fires when |
+|---|---|
+| `flow_started` | The photo-capture screen (Section 5, Step 1) is reached |
+| `photo_captured` | A photo upload succeeds (Step 2) |
+| `location_confirmed` | The citizen confirms an area/district, via GPS candidate or manual search (Step 4) |
+| `report_logged` | A report saves via "Just log it" (Step 6), or via the missing-mapping screen's "Cancel" choice (Step 8b) — both end in the same saved, non-emailed outcome |
+| `report_emailed` | A report saves via the email path (Step 8, direct-send case), or via the missing-mapping screen's "provide email" or "queue" choices (Step 8a/8c) |
+| `shared_on_x` | The citizen taps the "Share on X" option (Section 13.4) |
+| `shared_generic` | The citizen taps the generic "Share…" option — native share sheet or copy-link fallback (Section 13.4) |
+
+### 16.3 Privacy stance
+
+No PII, GPS coordinates, photo URLs, locality/district names, or report content are ever sent — only Mixpanel's own anonymous per-browser identifier, consistent with the no-login citizen model (Section 3). IP-based geolocation enrichment is explicitly disabled on the analytics side too, for the same reason FR2's location data itself is never sent along.
+
+### 16.4 Known limitation
+
+`shared_on_x`/`shared_generic` fire when the share action is *initiated* (the X compose window opened, or the native share sheet invoked) — not when a post is confirmed sent. Both can be cancelled by the citizen with no signal visible to the app. These are "intent to share" counts, not confirmed-share counts.
