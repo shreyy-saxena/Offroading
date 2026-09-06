@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ShareButtons } from "@/components/ui/ShareButtons";
 
+const { trackMock } = vi.hoisted(() => ({ trackMock: vi.fn() }));
+vi.mock("mixpanel-browser", () => ({ default: { init: vi.fn(), track: trackMock } }));
+
 const REPORT = {
   url: "https://offroading.example/reports/abc-123",
   locality: "Indiranagar",
@@ -11,6 +14,19 @@ const REPORT = {
 };
 
 describe("ShareButtons (ticket 13)", () => {
+  beforeEach(() => {
+    trackMock.mockClear();
+    process.env.NEXT_PUBLIC_MIXPANEL_TOKEN = "test-token";
+  });
+
+  it("tracks shared_on_x when the X link is clicked", () => {
+    render(<ShareButtons {...REPORT} />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Share on X (Twitter)" }));
+
+    expect(trackMock).toHaveBeenCalledWith("shared_on_x");
+  });
+
   it("forms a correct Twitter/X intent URL with pre-filled text and the permalink", () => {
     render(<ShareButtons {...REPORT} />);
 
@@ -54,6 +70,7 @@ describe("ShareButtons (ticket 13)", () => {
 
       await vi.waitFor(() => expect(shareMock).toHaveBeenCalled());
       expect(shareMock).toHaveBeenCalledWith(expect.objectContaining({ url: REPORT.url }));
+      expect(trackMock).toHaveBeenCalledWith("shared_generic");
     });
 
     it("falls back to copying the link with a visible confirmation when Web Share is unsupported", async () => {

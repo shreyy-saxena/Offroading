@@ -9,6 +9,9 @@ import { samplePhotoFile } from "./support/sample-file";
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
 
+const { trackMock } = vi.hoisted(() => ({ trackMock: vi.fn() }));
+vi.mock("mixpanel-browser", () => ({ default: { init: vi.fn(), track: trackMock } }));
+
 vi.mock("@/app/actions/report-photo", () => ({
   uploadReportPhotoAction: vi.fn().mockResolvedValue({
     ok: true,
@@ -53,11 +56,13 @@ async function reachReporterTypeStep() {
   fireEvent.click(await screen.findByRole("button", { name: "Indiranagar" }));
 
   expect(await screen.findByText("Are you a passer-by or a resident?")).toBeInTheDocument();
+  expect(trackMock).toHaveBeenCalledWith("location_confirmed");
 }
 
 describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_MIXPANEL_TOKEN = "test-token";
     markOnboardingSeen();
   });
 
@@ -81,6 +86,7 @@ describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", ()
     // Contact-detail fields never appeared anywhere in this run.
     expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Mobile number")).not.toBeInTheDocument();
+    expect(trackMock).toHaveBeenCalledWith("report_logged");
   });
 
   it("'Email the authorities' reaches the contact-details step with prior state intact", async () => {
@@ -110,6 +116,7 @@ describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", ()
       { name: "Test User", mobile: "9999999999", email: "test@example.com" },
     );
     await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith("/feed"));
+    expect(trackMock).toHaveBeenCalledWith("report_emailed");
   });
 });
 
@@ -118,6 +125,7 @@ describe("ReportFlow — reporter type & log-or-email branch (ticket 07/08)", ()
 describe("ReportFlow — offline submission handling (ticket 18)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_MIXPANEL_TOKEN = "test-token";
     markOnboardingSeen();
   });
 

@@ -5,6 +5,7 @@ import { uploadReportPhotoAction } from "@/app/actions/report-photo";
 import { CtaButton } from "@/components/ui/CtaButton";
 import { IconButton } from "@/components/ui/IconButton";
 import { CloseIcon } from "@/components/ui/icons";
+import { trackEvent } from "@/lib/analytics/mixpanel";
 import type { CapturedPhoto } from "./types";
 
 type PhotoStepProps = {
@@ -46,6 +47,10 @@ export function PhotoStep({ onCaptured, onClose, hasResumableDraft, onResume }: 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackEvent("flow_started");
+  }, []);
 
   useEffect(() => {
     if (!navigator.mediaDevices) {
@@ -102,6 +107,7 @@ export function PhotoStep({ onCaptured, onClose, hasResumableDraft, onResume }: 
     }
 
     setStatus("idle");
+    trackEvent("photo_captured");
     onCaptured({
       file,
       previewUrl: localPreviewUrl,

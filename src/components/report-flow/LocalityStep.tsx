@@ -5,6 +5,7 @@ import { resolveLocalityCandidatesAction, searchLocalitiesAction } from "@/app/a
 import { CtaButton } from "@/components/ui/CtaButton";
 import { PillChip } from "@/components/ui/PillChip";
 import { DISTRICTS } from "@/lib/data/districts";
+import { trackEvent } from "@/lib/analytics/mixpanel";
 import type { LocalityCandidate } from "@/lib/locality/resolve-candidates";
 import type { ConfirmedLocality, LocationResult } from "./types";
 
@@ -24,6 +25,14 @@ export function LocalityStep({ location, onConfirmed }: LocalityStepProps) {
     location.status === "granted" ? null : [],
   );
   const [candidatesError, setCandidatesError] = useState<string | null>(null);
+
+  // Single funnel-tracking point for both confirm paths below (a GPS
+  // candidate pill, or the manual search + district picker) rather than
+  // duplicating the trackEvent call at each call site.
+  function confirm(locality: ConfirmedLocality) {
+    trackEvent("location_confirmed");
+    onConfirmed(locality);
+  }
 
   useEffect(() => {
     if (location.status !== "granted") return;
@@ -106,7 +115,7 @@ export function LocalityStep({ location, onConfirmed }: LocalityStepProps) {
               {candidates.map((candidate) => (
                 <PillChip
                   key={`${candidate.locality}-${candidate.district}`}
-                  onClick={() => onConfirmed(candidate)}
+                  onClick={() => confirm(candidate)}
                 >
                   {candidate.locality}
                 </PillChip>
@@ -168,7 +177,7 @@ export function LocalityStep({ location, onConfirmed }: LocalityStepProps) {
 
         <CtaButton
           disabled={!canContinue}
-          onClick={() => onConfirmed({ locality: trimmedQuery, district: manualDistrict })}
+          onClick={() => confirm({ locality: trimmedQuery, district: manualDistrict })}
         >
           Continue
         </CtaButton>

@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { submitEmailReportAction } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { trackEvent } from "@/lib/analytics/mixpanel";
 import { isOffline, OFFLINE_MESSAGE } from "@/lib/offline";
 import { clearDraft } from "./draft-store";
 import type { BaseReportInput, ContactDetails } from "./types";
@@ -69,6 +70,7 @@ export function ContactDetailsStep({
         onNeedsMappingResolution(contact);
         return;
       }
+      trackEvent("report_emailed");
       await clearDraft();
       router.push("/feed");
     } catch {

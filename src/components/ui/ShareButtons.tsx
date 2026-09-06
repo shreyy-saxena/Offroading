@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackEvent } from "@/lib/analytics/mixpanel";
 import { IconButton } from "./IconButton";
 import { ShareIcon, XLogoIcon } from "./icons";
 
@@ -37,6 +38,7 @@ export function ShareButtons({ url, locality, district, className = "", showLabe
   const twitterHref = `https://twitter.com/intent/tweet?${new URLSearchParams({ text, url }).toString()}`;
 
   async function handleShareClick() {
+    trackEvent("shared_generic");
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({ title: text, text, url });
@@ -60,6 +62,7 @@ export function ShareButtons({ url, locality, district, className = "", showLabe
           rel="noopener noreferrer"
           icon={<XLogoIcon />}
           label="Share on X (Twitter)"
+          onClick={() => trackEvent("shared_on_x")}
         />
         {showLabels ? <span className="text-[11px] leading-none text-muted">X</span> : null}
       </div>

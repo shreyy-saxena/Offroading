@@ -11,6 +11,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
+const { trackMock } = vi.hoisted(() => ({ trackMock: vi.fn() }));
+vi.mock("mixpanel-browser", () => ({ default: { init: vi.fn(), track: trackMock } }));
+
 // The real action hits Supabase Storage (already covered by ticket 04's
 // integration test) — this suite is about flow/UI orchestration, so it's
 // faked at the module boundary rather than re-verified here.
@@ -44,6 +47,8 @@ function stubGeolocation(
 describe("ReportFlow — hero screen (ticket 05)", () => {
   beforeEach(() => {
     pushMock.mockClear();
+    trackMock.mockClear();
+    process.env.NEXT_PUBLIC_MIXPANEL_TOKEN = "test-token";
     // These tests are about the camera/GPS hand-off, not the onboarding
     // gate — mark it seen so the flow starts at the photo step, as it did
     // before onboarding existed.
@@ -57,6 +62,12 @@ describe("ReportFlow — hero screen (ticket 05)", () => {
 
     expect(pushMock).toHaveBeenCalledWith("/feed");
     expect(pushMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("tracks flow_started as soon as the camera screen is reached", () => {
+    render(<ReportFlow />);
+
+    expect(trackMock).toHaveBeenCalledWith("flow_started");
   });
 
   it("requests GPS right after the photo step, and advances the flow on grant", async () => {
@@ -74,6 +85,7 @@ describe("ReportFlow — hero screen (ticket 05)", () => {
     // Ticket 06's LocalityStep is next in the flow — reaching its heading
     // proves GPS resolved and the flow advanced past this ticket's steps.
     expect(await screen.findByText("Where's this?")).toBeInTheDocument();
+    expect(trackMock).toHaveBeenCalledWith("photo_captured");
   });
 
   it("hands off to manual locality search when GPS is denied, instead of dead-ending", async () => {

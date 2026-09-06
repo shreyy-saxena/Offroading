@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { resolveMissingMappingAction, type MissingMappingChoice } from "@/app/actions/submit-report";
 import { CtaButton } from "@/components/ui/CtaButton";
+import { trackEvent } from "@/lib/analytics/mixpanel";
 import { isOffline, OFFLINE_MESSAGE } from "@/lib/offline";
 import { clearDraft } from "./draft-store";
 import type { BaseReportInput, ContactDetails } from "./types";
@@ -39,6 +40,10 @@ export function MissingMappingStep({ reportInput, contact }: MissingMappingStepP
         setSubmitting(false);
         return;
       }
+      // "cancel" ends up identical to "just log it" at the DB level
+      // (email_delivery_status: not_applicable) — the other two choices
+      // both put an authority email in play, immediately or once queued.
+      trackEvent(choice.type === "cancel" ? "report_logged" : "report_emailed");
       await clearDraft();
       router.push("/feed");
     } catch {
